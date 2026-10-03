@@ -6,7 +6,8 @@ from app.schemas.investigation import (
     RootCauseAnalysis,
     InvestigationResult,
     Hypothesis,
-    EvidenceItem
+    EvidenceItem,
+    FixAdvisorGuidance
 )
 from app.services.correlation_service import CorrelationService
 from app.services.blast_radius_service import BlastRadiusService
@@ -101,6 +102,23 @@ class InvestigatorAgent:
         rca.blast_radius = blast_report
         if not rca.affected_services:
             rca.affected_services = [service_name]
+
+        # 4b. Fix Advisor fallback. The RCA prompt above already asks for developer fix
+        # guidance, so calling the dedicated agent unconditionally would buy a second LLM
+        # round-trip on the critical path for no new information. We only reach for it when
+        # the model omitted guidance, which keeps the agent live without paying twice.
+        if rca.fix_guidance is None:
+            from app.agents.fix_advisor import FixAdvisorAgent
+            rca.fix_guidance = await FixAdvisorAgent().generate_fix_guidance(
+                service_name=service_name,
+                root_cause=rca.primary_hypothesis.cause,
+                commit_hash=latest_dep.commit_hash if latest_dep else None,
+            )
+
+        # The "guidance only" safety disclaimer is not model-negotiable: normalise it
+        # whatever produced the guidance, so the no-direct-code-modification invariant
+        # holds regardless of provider.
+        rca.fix_guidance.disclaimer = FixAdvisorGuidance.model_fields["disclaimer"].default
 
         # 5. Persist RCA summary & root cause on Incident model
         incident.summary = rca.summary

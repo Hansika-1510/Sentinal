@@ -17,12 +17,16 @@ class ResponsePlannerAgent:
     def plan_remediation_options(self, rca: RootCauseAnalysis, service_name: str, deployment_version: Optional[str] = None) -> List[RemediationOption]:
         """
         Generates structured, risk-classified operational actions.
+
+        The emitted `type` values are drawn from settings.ALLOWED_OPERATIONAL_ACTIONS so
+        every option is valid by construction against validate_operational_action_allowed.
+        Emitting anything else gets the proposal rejected at create_action_proposal time.
         """
         options: List[RemediationOption] = []
 
         # 1. Rollback Option (Medium/High Risk depending on state)
         options.append(RemediationOption(
-            type="ROLLBACK",
+            type="rollback_deployment",
             risk_level="MEDIUM",
             reason=f"Roll back {service_name} from version {deployment_version or 'v1.8.3'} to previous stable release.",
             expected_impact="Estimated impact: Restores baseline healthy configuration and clears error spikes (AI-assisted assessment).",
@@ -34,7 +38,7 @@ class ResponsePlannerAgent:
 
         # 2. Restart Option (Low Risk)
         options.append(RemediationOption(
-            type="RESTART_SERVICE",
+            type="restart_service",
             risk_level="LOW",
             reason=f"Perform rolling restart of {service_name} instances to flush degraded connection handles.",
             expected_impact="Estimated impact: Transient relief; underlying code defect remains active until permanent fix is deployed (AI-assisted assessment).",
@@ -46,7 +50,7 @@ class ResponsePlannerAgent:
 
         # 3. Disable Feature Flag if applicable
         options.append(RemediationOption(
-            type="DISABLE_FEATURE",
+            type="disable_feature_flag",
             risk_level="LOW",
             reason="Disable canary / optional features to reduce database connection demand.",
             expected_impact="Estimated impact: Lowers query pressure on primary database.",

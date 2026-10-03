@@ -54,7 +54,7 @@ class BlastRadiusReport(BaseModel):
 
 
 class RemediationOption(BaseModel):
-    type: str = Field(..., description="ROLLBACK, RESTART_SERVICE, DISABLE_FEATURE, CHANGE_CONFIGURATION, ESCALATE")
+    type: str = Field(..., description="Operational action type; must be in settings.ALLOWED_OPERATIONAL_ACTIONS, e.g. rollback_deployment, restart_service, disable_feature_flag")
     risk_level: str = Field(..., description="LOW, MEDIUM, HIGH")
     reason: str = Field(..., description="Operational justification")
     expected_impact: str = Field(..., description="Estimated operational impact (AI-assisted assessment)")

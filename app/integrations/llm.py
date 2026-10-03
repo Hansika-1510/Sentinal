@@ -1,5 +1,7 @@
+import asyncio
 import json
 import math
+import random
 import httpx
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Type
@@ -313,10 +315,63 @@ class MockLLMProvider(LLMProvider):
 
 
 class OpenRouterLLMProvider(LLMProvider):
+    # Statuses worth retrying: 429 is rate limiting (a retry is the whole fix), the 5xx set
+    # is provider-side flakiness. Everything else is a request bug that retrying would repeat.
+    RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
+
     def __init__(self, api_key: str, model: str = "anthropic/claude-3.5-sonnet", base_url: str = "https://openrouter.ai/api/v1"):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
+
+    @staticmethod
+    def _retry_delay(attempt: int, response: Optional[httpx.Response] = None) -> float:
+        """Exponential backoff with jitter, bounded by config. Honours Retry-After when sent."""
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    return max(0.0, min(float(retry_after), settings.LLM_RETRY_MAX_DELAY_SECONDS))
+                except ValueError:
+                    pass
+        base = settings.LLM_RETRY_BASE_DELAY_SECONDS * (2 ** attempt)
+        return min(base + random.uniform(0, base / 2), settings.LLM_RETRY_MAX_DELAY_SECONDS)
+
+    async def _post(self, client: httpx.AsyncClient, url: str, payload: dict, headers: dict) -> httpx.Response:
+        """POST with bounded retries on rate limiting, transient 5xx, and timeouts.
+
+        The autonomous pipeline treats an investigation failure as non-fatal, so an
+        unretried 429 surfaces to the operator as an incident with no RCA. Retries are
+        bounded so a bad provider still fails fast rather than hanging the ingest request.
+        """
+        attempts = max(1, settings.LLM_MAX_RETRIES)
+        for attempt in range(attempts):
+            is_last = attempt >= attempts - 1
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+            except (httpx.TimeoutException, httpx.TransportError):
+                if is_last:
+                    raise
+                delay = self._retry_delay(attempt)
+                logger.warning(
+                    f"OpenRouter request failed to connect; retrying in {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{attempts})"
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            if response.status_code in self.RETRYABLE_STATUSES and not is_last:
+                delay = self._retry_delay(attempt, response)
+                logger.warning(
+                    f"OpenRouter returned {response.status_code}; retrying in {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{attempts})"
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            return response
+
+        raise LLMIntegrationException("LLM request failed after exhausting retries")  # pragma: no cover
 
     async def generate_structured(self, prompt: str, schema_class: Type[BaseModel], system_prompt: Optional[str] = None) -> BaseModel:
         schema_json = json.dumps(schema_class.model_json_schema(), indent=2)
@@ -334,16 +389,30 @@ class OpenRouterLLMProvider(LLMProvider):
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": prompt}
             ],
-            "response_format": {"type": "json_object"}
+            "response_format": {"type": "json_object"},
+            "max_tokens": settings.LLM_MAX_TOKENS
         }
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
-                response = await client.post(f"{self.base_url}/chat/completions", json=payload, headers=headers)
+                response = await self._post(client, f"{self.base_url}/chat/completions", payload, headers)
                 response.raise_for_status()
                 data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                parsed_json = json.loads(content)
+                choice = data["choices"][0]
+                content = choice["message"].get("content")
+                if not content:
+                    # Reasoning models return content=None when max_tokens is exhausted by
+                    # the reasoning pass, so name the cause rather than failing on json.loads.
+                    raise LLMIntegrationException(
+                        f"LLM returned no content (finish_reason={choice.get('finish_reason')!r}); "
+                        f"the response was likely truncated by max_tokens={settings.LLM_MAX_TOKENS}"
+                    )
+                try:
+                    parsed_json = json.loads(content)
+                except json.JSONDecodeError as e:
+                    raise LLMIntegrationException(
+                        f"LLM returned unparseable JSON (finish_reason={choice.get('finish_reason')!r}): {e}"
+                    )
                 return schema_class.model_validate(parsed_json)
             except Exception as e:
                 logger.error(f"OpenRouter LLM request failed: {str(e)}", exc_info=True)
@@ -359,10 +428,10 @@ class OpenRouterLLMProvider(LLMProvider):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        payload = {"model": self.model, "messages": messages}
+        payload = {"model": self.model, "messages": messages, "max_tokens": settings.LLM_MAX_TOKENS}
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
-                response = await client.post(f"{self.base_url}/chat/completions", json=payload, headers=headers)
+                response = await self._post(client, f"{self.base_url}/chat/completions", payload, headers)
                 response.raise_for_status()
                 data = response.json()
                 return data["choices"][0]["message"]["content"]
