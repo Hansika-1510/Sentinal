@@ -18,10 +18,25 @@ if _PROJECT_ROOT not in sys.path:
 # Windows consoles frequently default to a legacy code page (e.g. cp1252) which
 # cannot encode the status glyphs printed at the end of a review. Without this the
 # CLI dies with UnicodeEncodeError and exits 1, blocking even a clean commit.
+_utf8_ok = True
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding="utf-8")
     except (AttributeError, ValueError, OSError):
+        _utf8_ok = False
+
+if not _utf8_ok:
+    # Warn once on the original stderr. If reconfiguration failed the status glyphs
+    # printed later may still raise UnicodeEncodeError; without this the user sees
+    # that crash with no hint that the encoding workaround was tried and failed.
+    # The message is deliberately ASCII-only so it cannot itself hit the code page
+    # problem, and __stderr__ may be None (e.g. pythonw.exe), hence the guard.
+    try:
+        sys.__stderr__.write(
+            "[CodeGuard] warning: could not switch stdout/stderr to UTF-8; "
+            "status symbols may not print on this console.\n"
+        )
+    except Exception:
         pass
 
 
