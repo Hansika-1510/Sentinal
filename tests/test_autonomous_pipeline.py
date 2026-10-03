@@ -8,6 +8,7 @@ Execution is deliberately NOT covered as automatic — human approval still gate
 """
 import asyncio
 import json
+import logging
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,6 +26,7 @@ from app.schemas.investigation import (
     RootCauseAnalysis,
 )
 from app.services.autonomous_response_service import run_autonomous_response
+from app.services.remediation_service import RemediationService
 
 
 def _register_deployment(client: TestClient, service: str, version: str, commit: str):
@@ -249,6 +251,76 @@ def test_a_failed_run_leaves_an_audit_row(client: TestClient, db_session, monkey
     assert rows[0]["actor"] == "AutonomousPipeline"
     assert rows[0]["target"] == f"Incident:{incident_id}"
     assert "provider exploded" in json.dumps(rows[0]["metadata_json"])
+
+
+def test_a_cancelled_run_still_resets_the_incident(client: TestClient, db_session, monkeypatch):
+    """A client disconnect mid-run must not strand the incident looking in-progress.
+
+    CancelledError derives from BaseException, so it bypasses the broad `except Exception`
+    that performs the reset -- which is exactly why it needs a handler of its own.
+    """
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", False)
+    incident_id = _trigger_critical_incident(client)
+
+    async def slow_investigation(self, iid):
+        self.db.get(Incident, iid).status = "INVESTIGATING"  # mirrors investigator.py:44
+        self.db.commit()
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", True)
+    monkeypatch.setattr(InvestigatorAgent, "investigate_incident", slow_investigation)
+
+    async def start_then_cancel():
+        task = asyncio.ensure_future(run_autonomous_response(incident_id, db_session))
+        await asyncio.sleep(0.05)  # let it get past the gates into the investigation
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(start_then_cancel())
+
+    assert client.get(f"/api/incidents/{incident_id}").json()["status"] == "DETECTED"
+
+
+def test_the_logged_proposal_count_excludes_rejected_options(client: TestClient, db_session, monkeypatch):
+    """The summary line must count proposals that were actually created.
+
+    It logged len(options), so a run where every proposal was rejected still reported
+    three successes -- the log said the opposite of what happened.
+    """
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", False)
+    incident_id = _trigger_critical_incident(client)
+
+    original = RemediationService.create_action_proposal
+
+    def reject_rollback(self, action_in):
+        if action_in.type == "rollback_deployment":
+            raise RuntimeError("proposal rejected by the allowlist")
+        return original(self, action_in)
+
+    messages: list[str] = []
+
+    class _Capture(logging.Handler):
+        def emit(self, record):
+            messages.append(record.getMessage())
+
+    capture = _Capture()
+    app_logger = logging.getLogger("incident_agent")
+    app_logger.addHandler(capture)  # propagate is False, so the root handler would miss these
+
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", True)
+    monkeypatch.setattr(RemediationService, "create_action_proposal", reject_rollback)
+    try:
+        asyncio.run(run_autonomous_response(incident_id, db_session))
+    finally:
+        app_logger.removeHandler(capture)
+
+    summary = [m for m in messages if "remediation option(s)" in m]
+    assert summary, "the planner should report what it created"
+    assert "2/3" in summary[0], f"expected 2 of 3 creations, got: {summary[0]}"
+
+    created = client.get(f"/api/actions?incident_id={incident_id}").json()
+    assert len(created) == 2
 
 
 # ------------------------------------------------------------------- planner contract

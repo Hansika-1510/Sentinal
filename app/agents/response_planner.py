@@ -18,9 +18,12 @@ class ResponsePlannerAgent:
         """
         Generates structured, risk-classified operational actions.
 
-        The emitted `type` values are drawn from settings.ALLOWED_OPERATIONAL_ACTIONS so
-        every option is valid by construction against validate_operational_action_allowed.
-        Emitting anything else gets the proposal rejected at create_action_proposal time.
+        The emitted `type` values are hardcoded to the settings.ALLOWED_OPERATIONAL_ACTIONS
+        vocabulary rather than read from it, because the option set is fixed by the planner's
+        own logic. That coupling is held by tests rather than by construction -- if the
+        allowlist were edited without editing this method, proposals would start being
+        rejected at create_action_proposal time. `test_planner_emits_only_allowlisted_action_types`
+        (and the same contract in test_agent_smoke.py) fails first if that happens.
         """
         options: List[RemediationOption] = []
 

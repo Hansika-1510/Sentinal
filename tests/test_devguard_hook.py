@@ -103,3 +103,31 @@ def test_install_outside_a_git_repo_fails_cleanly(tmp_path, monkeypatch):
 
     assert result.exit_code == 1
     assert "Not inside a git repository" in result.output
+
+
+@pytest.mark.parametrize("bad_url", [
+    'http://localhost:8000"; rm -rf ~; echo "',
+    "http://localhost:8000; rm -rf ~",
+    "http://localhost:8000$(whoami)",
+    "http://localhost:8000`id`",
+    "not-a-url",
+    "ftp://localhost:8000",
+    "http://local host:8000",
+])
+def test_install_rejects_a_url_that_cannot_be_embedded_safely(repo, bad_url):
+    """The URL lands inside a generated shell script, so a quote or ; must be refused.
+
+    A merely malformed URL breaks the hook; one carrying shell metacharacters would alter
+    it, which is why this rejects the character set rather than escaping it.
+    """
+    result = CliRunner().invoke(devguard.cli, ["install-hook", "--backend-url", bad_url])
+
+    assert result.exit_code == 1
+    assert "Invalid --backend-url" in result.output
+    assert not _hook_path(repo).exists(), "no hook may be written from a bad URL"
+
+
+def test_install_accepts_ordinary_url_forms(repo):
+    for url in ("http://localhost:8000", "https://devguard.internal:8443", "http://127.0.0.1:8123"):
+        result = CliRunner().invoke(devguard.cli, ["install-hook", "--backend-url", url, "--force"])
+        assert result.exit_code == 0, f"{url} should be accepted: {result.output}"

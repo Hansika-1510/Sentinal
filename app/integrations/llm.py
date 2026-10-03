@@ -428,8 +428,16 @@ class OpenRouterLLMProvider(LLMProvider):
                 response = await self._post(client, f"{self.base_url}/chat/completions", payload, headers)
                 response.raise_for_status()
                 data = response.json()
-                choice = data["choices"][0]
-                content = choice["message"].get("content")
+                # A provider-side error body ({"error": {...}}) or an empty choices array
+                # used to surface as a bare KeyError/TypeError, which reaches the operator
+                # as a generic failure with no hint that the shape was wrong.
+                choices = data.get("choices") if isinstance(data, dict) else None
+                if not choices:
+                    raise LLMIntegrationException(
+                        f"LLM response contained no choices: {json.dumps(data)[:300]}"
+                    )
+                choice = choices[0] or {}
+                content = (choice.get("message") or {}).get("content")
                 if not content:
                     # Reasoning models return content=None when max_tokens is exhausted by
                     # the reasoning pass, so name the cause rather than failing on json.loads.
@@ -464,7 +472,12 @@ class OpenRouterLLMProvider(LLMProvider):
                 response = await self._post(client, f"{self.base_url}/chat/completions", payload, headers)
                 response.raise_for_status()
                 data = response.json()
-                return data["choices"][0]["message"]["content"]
+                choices = data.get("choices") if isinstance(data, dict) else None
+                if not choices:
+                    raise LLMIntegrationException(
+                        f"LLM response contained no choices: {json.dumps(data)[:300]}"
+                    )
+                return (choices[0].get("message") or {}).get("content")
             except Exception as e:
                 raise LLMIntegrationException(str(e))
 

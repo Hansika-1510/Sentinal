@@ -4,6 +4,7 @@ import subprocess
 import click
 import httpx
 from typing import Optional
+from urllib.parse import urlparse
 
 # Allow `python cli/devguard.py` to import the `app` package. When Python runs a
 # script it puts the script's directory on sys.path, not the project root, so the
@@ -97,6 +98,26 @@ def _read_text(path: str) -> str:
         return f.read()
 
 
+#: Characters that would break out of the double-quoted `--backend-url "..."` slot in the
+#: generated hook, or start a new shell construct inside it. A backend URL never legitimately
+#: needs any of them, so rejecting the set outright is simpler and safer than escaping.
+_UNSAFE_URL_CHARS = set("\"'`$&|;<>()\\ \t\r\n")
+
+
+def _validate_backend_url(url: str) -> Optional[str]:
+    """Return an error message if the URL cannot be embedded safely in the hook, else None.
+
+    The URL is interpolated into a shell script, so an unvalidated value containing a quote
+    or a semicolon could alter the generated hook rather than merely break it.
+    """
+    if set(url) & _UNSAFE_URL_CHARS:
+        return "must not contain quotes, whitespace, or shell metacharacters"
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        return "must be an absolute http:// or https:// URL"
+    return None
+
+
 @cli.command("install-hook")
 @click.option("--backend-url", default="http://localhost:8000", help="Backend URL the hook calls for the review")
 @click.option("--force", is_flag=True, help="Overwrite a pre-commit hook that devguard did not install")
@@ -137,6 +158,11 @@ def install_hook(backend_url: str, force: bool, uninstall: bool):
             fg="red", bold=True,
         )
         click.secho("            Re-run with --force to overwrite it (the existing hook will be lost).", fg="red")
+        raise SystemExit(1)
+
+    url_error = _validate_backend_url(backend_url)
+    if url_error:
+        click.secho(f"[CodeGuard] Invalid --backend-url {backend_url!r}: {url_error}.", fg="red", bold=True)
         raise SystemExit(1)
 
     os.makedirs(hooks_dir, exist_ok=True)

@@ -43,6 +43,45 @@ def should_auto_investigate(severity: Optional[str]) -> bool:
     return (severity or "").strip().upper() in allowed
 
 
+async def _run_pipeline(incident_id: str, db: Session) -> Optional[InvestigationResult]:
+    """Gating, investigation, and remediation proposal, as one awaitable.
+
+    Split out so the timeout can wrap the whole sequence rather than just the investigator
+    call, which is what it used to wrap while the docstring claimed otherwise.
+
+    Note what that does and does not buy: `asyncio.wait_for` can only interrupt at an await
+    point, so the investigation -- the one slow, I/O-bound stage -- is genuinely bounded,
+    while the proposal stage below is local DB work with no awaits and is bounded only by
+    its own speed. It is a handful of inserts, so that is acceptable; it is not, however,
+    interruptible.
+    """
+    if not settings.AUTO_INVESTIGATE_ON_INCIDENT:
+        return None
+
+    incident = db.get(Incident, incident_id, options=[joinedload(Incident.service)])
+    if incident is None:
+        return None
+
+    if not should_auto_investigate(incident.severity):
+        logger.info(
+            f"Autonomous pipeline skipped incident {incident_id}: "
+            f"severity {incident.severity} is not in {settings.AUTO_INVESTIGATE_SEVERITIES}"
+        )
+        return None
+
+    # Idempotency: if a root cause is already recorded, someone (or a retry) already
+    # investigated this incident.
+    if incident.root_cause:
+        return None
+
+    result = await InvestigatorAgent(db).investigate_incident(incident_id)
+
+    if settings.AUTO_PROPOSE_REMEDIATION:
+        _propose_remediation_from_rca(db, incident, result.rca)
+
+    return result
+
+
 async def run_autonomous_response(incident_id: str, db: Session) -> Optional[InvestigationResult]:
     """Investigate a freshly created incident and propose remediation, unattended.
 
@@ -51,37 +90,24 @@ async def run_autonomous_response(incident_id: str, db: Session) -> Optional[Inv
 
     Never raises: an LLM or planner failure must not turn a successful event ingest
     into a 5xx. The incident is reset to DETECTED for a human to investigate manually.
-    The whole run is bounded by AUTO_RESPONSE_TIMEOUT_SECONDS.
+    AUTO_RESPONSE_TIMEOUT_SECONDS bounds the awaitable `_run_pipeline` call, so a slow
+    provider cannot hold the ingest request open past that ceiling; see the note on
+    `_run_pipeline` for what that does and does not interrupt.
     """
     try:
-        if not settings.AUTO_INVESTIGATE_ON_INCIDENT:
-            return None
-
-        incident = db.get(Incident, incident_id, options=[joinedload(Incident.service)])
-        if incident is None:
-            return None
-
-        if not should_auto_investigate(incident.severity):
-            logger.info(
-                f"Autonomous pipeline skipped incident {incident_id}: "
-                f"severity {incident.severity} is not in {settings.AUTO_INVESTIGATE_SEVERITIES}"
-            )
-            return None
-
-        # Idempotency: if a root cause is already recorded, someone (or a retry) already
-        # investigated this incident.
-        if incident.root_cause:
-            return None
-
-        result = await asyncio.wait_for(
-            InvestigatorAgent(db).investigate_incident(incident_id),
+        return await asyncio.wait_for(
+            _run_pipeline(incident_id, db),
             timeout=settings.AUTO_RESPONSE_TIMEOUT_SECONDS,
         )
 
-        if settings.AUTO_PROPOSE_REMEDIATION:
-            _propose_remediation_from_rca(db, incident, result.rca)
-
-        return result
+    except asyncio.CancelledError:
+        # CancelledError derives from BaseException, so the handler below never sees it.
+        # A client disconnect mid-run is exactly the case the reset exists for, so do the
+        # cleanup here -- but re-raise, because swallowing cancellation would leave the
+        # task looking like it completed normally.
+        logger.warning(f"Autonomous response for incident {incident_id} was cancelled")
+        _reset_to_detected(db, incident_id)
+        raise
 
     except Exception as exc:  # noqa: BLE001 - deliberate: ingest must survive this
         logger.error(
@@ -108,13 +134,19 @@ def _propose_remediation_from_rca(db: Session, incident: Incident, rca: RootCaus
     if already_proposed:
         return
 
+    # `service_id` is a UUID, which no deployment row records, so a deployment lookup only
+    # makes sense when the relationship actually resolved. Passing the id as a service name
+    # used to silently match nothing.
     service_name = incident.service.name if incident.service else incident.service_id
-    deployments = DeploymentService(db).get_recent_deployments_for_service(service_name, limit=1)
-    deployment_version = deployments[0].version if deployments else None
+    deployment_version = None
+    if incident.service is not None:
+        deployments = DeploymentService(db).get_recent_deployments_for_service(service_name, limit=1)
+        deployment_version = deployments[0].version if deployments else None
 
     options = ResponsePlannerAgent().plan_remediation_options(rca, service_name, deployment_version)
     remediation_service = RemediationService(db)
 
+    created = 0
     for option in options:
         try:
             remediation_service.create_action_proposal(ActionCreate(
@@ -135,6 +167,7 @@ def _propose_remediation_from_rca(db: Session, incident: Incident, rca: RootCaus
                     "evidence": [e.model_dump() for e in option.evidence],
                 },
             ))
+            created += 1
         except Exception as exc:  # noqa: BLE001 - one bad option must not abort the rest
             logger.warning(
                 f"Autonomous planner option '{option.type}' for incident {incident.id} "
@@ -142,7 +175,8 @@ def _propose_remediation_from_rca(db: Session, incident: Incident, rca: RootCaus
             )
 
     logger.info(
-        f"Autonomous planner proposed {len(options)} remediation option(s) for incident {incident.id}"
+        f"Autonomous planner proposed {created}/{len(options)} remediation option(s) "
+        f"for incident {incident.id}"
     )
 
 

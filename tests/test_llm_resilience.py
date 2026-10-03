@@ -228,3 +228,57 @@ def test_token_budget_clears_a_reasoning_models_overhead():
     returned a truncated object, so every autonomous investigation failed.
     """
     assert settings.LLM_MAX_TOKENS >= 8192
+
+
+# ------------------------------------------------------ malformed provider responses
+
+
+def _raw_response(status_code: int, payload) -> httpx.Response:
+    return httpx.Response(
+        status_code, json=payload, request=httpx.Request("POST", _URL),
+    )
+
+
+def test_an_error_body_names_the_missing_choices(monkeypatch, no_sleep):
+    """A provider error body must not surface as a bare KeyError.
+
+    OpenRouter returns {"error": {...}} without a choices key when the upstream provider
+    fails, which used to raise KeyError('choices') and reach the operator as a generic
+    failure with no clue what went wrong.
+    """
+    async def fake_post(self, url, **kwargs):
+        return _raw_response(200, {"error": {"message": "upstream provider unavailable"}})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    with pytest.raises(LLMIntegrationException) as exc:
+        asyncio.run(_provider().generate_structured("prompt", _Schema))
+
+    assert "no choices" in str(exc.value)
+    assert "upstream provider unavailable" in str(exc.value)
+
+
+def test_an_empty_choices_array_is_reported(monkeypatch, no_sleep):
+    async def fake_post(self, url, **kwargs):
+        return _raw_response(200, {"choices": []})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    with pytest.raises(LLMIntegrationException) as exc:
+        asyncio.run(_provider().generate_structured("prompt", _Schema))
+
+    assert "no choices" in str(exc.value)
+
+
+def test_a_choice_without_a_message_is_reported(monkeypatch, no_sleep):
+    """The truncation diagnostic must still fire when `message` itself is absent."""
+    async def fake_post(self, url, **kwargs):
+        return _raw_response(200, {"choices": [{"finish_reason": "length"}]})
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fake_post)
+
+    with pytest.raises(LLMIntegrationException) as exc:
+        asyncio.run(_provider().generate_structured("prompt", _Schema))
+
+    assert "no content" in str(exc.value)
+    assert "length" in str(exc.value)

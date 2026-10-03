@@ -24,13 +24,13 @@ async def ingest_event(event_in: EventCreate, db: Session = Depends(get_db)):
     # loop: this route used to be `def` and FastAPI kept it in a threadpool. Awaiting
     # the thread hop restores that without giving up the async orchestration below.
     #
-    # The request session is touched from several threads here (get_db runs in a
-    # threadpool, this body on the event loop, Sentinel in a worker). That is safe
-    # because the accesses are strictly sequenced -- `to_thread` returns only after
-    # Sentinel has finished, so no two threads ever hold the session at once --
-    # and because the SQLite connection is opened with check_same_thread=False
-    # (app/db/session.py:10). SQLAlchemy's thread-safety warning is about concurrent
-    # use; sequential hand-off is what any FastAPI app does with a sync dependency.
+    # This means the request session is touched from more than one thread (get_db runs in
+    # a threadpool, this body on the event loop, Sentinel in a worker). SQLAlchemy warns
+    # that a Session is not thread-safe, but that warning is about *concurrent* use: the
+    # accesses here are strictly sequenced, because `to_thread` returns only after Sentinel
+    # has finished, so no two threads ever hold the session at once. Sequential hand-off
+    # is what any FastAPI app with a sync dependency already does; check_same_thread=False
+    # (app/db/session.py:10) is what lets the SQLite driver accept it too.
     response = await asyncio.to_thread(SentinelAgent(db).process_event, event_in)
     if response.incident_created and response.incident_id:
         await run_autonomous_response(response.incident_id, db)

@@ -82,7 +82,7 @@ flowchart TD
 * **Migrations:** Alembic
 * **Caching & Queues:** Redis (with local in-memory fallback)
 * **HTTP Client:** HTTPX
-* **Testing:** Pytest (57 tests: unit, API, safety, agent smoke, LLM resilience, autonomous pipeline, pre-commit hook, and full E2E lifecycle)
+* **Testing:** Pytest (70 tests: unit, API, safety, agent smoke, LLM resilience, autonomous pipeline, pre-commit hook, and full E2E lifecycle)
 * **LLM Integrations:** OpenRouter, Ollama, and deterministic Mock LLM Adapter
 * **Containerization:** Docker, Docker Compose
 
@@ -121,7 +121,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run all automated tests (57 tests)
+# Run all automated tests (70 tests)
 python -m pytest -v
 ```
 

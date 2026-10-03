@@ -118,7 +118,15 @@ class InvestigatorAgent:
         # The "guidance only" safety disclaimer is not model-negotiable: normalise it
         # whatever produced the guidance, so the no-direct-code-modification invariant
         # holds regardless of provider.
-        rca.fix_guidance.disclaimer = FIX_ADVISOR_DISCLAIMER
+        if rca.fix_guidance is not None:
+            rca.fix_guidance.disclaimer = FIX_ADVISOR_DISCLAIMER
+        else:
+            # Unreachable today (both paths above return guidance), but the invariant is
+            # worth a trace rather than an AttributeError if a provider ever yields None.
+            logger.warning(
+                f"Incident {incident_id}: no fix guidance produced; skipping disclaimer "
+                "normalisation"
+            )
 
         # 5. Persist RCA summary & root cause on Incident model
         incident.summary = rca.summary
