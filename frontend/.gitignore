@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+.env*
+!.env.example
+*.tsbuildinfo
+next-env.d.ts
+reference/
+artifacts/
+*.log
+
+# Diagnostic scratch output and pre-git safety copies — the working tree is
+# versioned now, so neither is source.
+*.tmp.txt
+scripts/_backup-*/

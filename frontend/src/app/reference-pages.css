@@ -1,0 +1,442 @@
+.reference-hero {
+  padding-top: 167px;
+  padding-bottom: 72px;
+}
+.reference-hero h1 {
+  font-size: clamp(58px, 7.1vw, 116px);
+  font-weight: 510;
+  letter-spacing: -0.065em;
+  line-height: 1.015;
+}
+.reference-hero h1 > span {
+  color: var(--muted);
+}
+.reference-hero > p {
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1.7;
+  margin-top: 30px;
+  max-width: 590px;
+}
+.docs-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 760px);
+  gap: 8%;
+  padding-bottom: 140px;
+  border-top: 1px solid var(--line);
+  padding-top: 49px;
+}
+.docs-sidebar {
+  position: sticky;
+  top: 120px;
+  align-self: start;
+}
+.docs-sidebar > .mono {
+  font-size: 8px;
+  color: var(--muted);
+}
+.docs-sidebar nav {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 21px;
+  margin-top: 27px;
+}
+.docs-sidebar nav a {
+  color: var(--muted);
+  font-size: 12px;
+}
+.docs-sidebar nav a:hover {
+  color: var(--accent-text);
+}
+.docs-architecture-link {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  font-size: 11px;
+  margin-top: 38px;
+  color: var(--accent-text);
+}
+.docs-content {
+  min-width: 0;
+}
+.docs-content > section + section {
+  margin-top: 78px;
+  padding-top: 60px;
+  border-top: 1px solid var(--line);
+}
+.docs-content h2 {
+  font-size: 35px;
+  font-weight: 460;
+  letter-spacing: -0.045em;
+  line-height: 1.18;
+}
+.docs-content h3 {
+  font-size: 21px;
+  font-weight: 470;
+  letter-spacing: -0.035em;
+  margin-top: 30px;
+}
+.docs-content p {
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--muted);
+  margin-top: 21px;
+}
+.docs-content .text-link {
+  font-size: 12px;
+  margin-top: 24px;
+}
+.docs-callout {
+  display: flex;
+  gap: 17px;
+  padding: 24px;
+  border: 1px solid #263d5b;
+  background: #e9dbbb;
+  border-radius: 7px;
+  margin-top: 30px;
+}
+.docs-callout > svg {
+  color: var(--accent-text);
+}
+.docs-callout strong {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.7;
+}
+.docs-callout p {
+  font-size: 12px;
+  margin-top: 10px;
+}
+.docs-workflow {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  margin-top: 31px;
+}
+.docs-workflow li {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 1px solid var(--line);
+  padding-left: 20px;
+}
+.docs-workflow strong {
+  font-size: 14px;
+  font-weight: 470;
+}
+.docs-workflow span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+}
+.docs-code {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  margin-top: 30px;
+  background: #efe2c7;
+  overflow: hidden;
+}
+.docs-code > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 20px;
+}
+.docs-code > div > .mono {
+  font-size: 8px;
+  color: var(--muted);
+}
+.docs-code pre {
+  font-size: 12px;
+  line-height: 1.9;
+  color: #251a0f;
+  padding: 23px;
+  margin: 0;
+  overflow-x: auto;
+}
+.docs-agent-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 23px;
+  margin-top: 32px;
+}
+.docs-agent-list article {
+  background: #ede0c3;
+  border: 1px solid #253b58;
+  border-radius: 7px;
+  padding: 25px;
+  scroll-margin-top: 105px;
+}
+.docs-agent-list h3 {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  letter-spacing: -0.025em;
+  margin: 0;
+  color: var(--accent-text);
+}
+.docs-agent-list p {
+  font-size: 13px;
+  line-height: 1.7;
+  min-height: 45px;
+}
+.docs-agent-list dl {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 23px;
+  margin-bottom: 0;
+}
+.docs-agent-list dt {
+  font-size: 10px;
+  color: #2d2014;
+}
+.docs-agent-list dd {
+  font-size: 11px;
+  line-height: 1.75;
+  margin: 8px 0 0;
+  color: #251a0f;
+}
+.docs-review-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  border-block: 1px solid var(--line);
+  padding-block: 26px;
+  margin-top: 29px;
+}
+.docs-review-flow span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+}
+.docs-review-flow > svg {
+  color: var(--accent-text);
+}
+.docs-security-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-top: 22px;
+}
+.docs-security-grid h3 {
+  margin-top: 0;
+  font-size: 20px;
+}
+.docs-security-grid p {
+  font-size: 12px;
+  line-height: 1.8;
+  margin-top: 15px;
+}
+.docs-content #demo > .button {
+  margin-top: 30px;
+  font-size: 12px;
+}
+.architecture-page .system-standalone {
+  min-height: auto;
+  padding-top: 40px;
+  padding-bottom: 75px;
+  /* Deliberately no background. This section used to repaint itself with the
+     page ground to read as full-bleed; on the slate ground that would drop the
+     dark ink the panel tokens give it onto a dark surface. Inheriting
+     `.system-section`'s beige keeps the standalone view on the same plane as
+     the same component everywhere else. */
+}
+.architecture-page .system-header {
+  display: none;
+}
+.architecture-page .system-map {
+  margin-top: 0;
+}
+.architecture-boundaries {
+  border-top: 1px solid var(--line);
+}
+.architecture-boundaries > h2 {
+  font-size: clamp(44px, 5vw, 79px);
+  font-weight: 470;
+  letter-spacing: -0.055em;
+  line-height: 1.1;
+}
+.architecture-boundaries > h2 > span {
+  color: var(--muted);
+}
+.boundary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 55px 75px;
+  margin-top: 65px;
+}
+.boundary-grid > article > svg {
+  color: var(--accent-text);
+}
+.boundary-grid h3 {
+  font-size: 26px;
+  font-weight: 470;
+  letter-spacing: -0.045em;
+  margin-top: 23px;
+}
+.boundary-grid p {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin-top: 18px;
+  max-width: 440px;
+}
+.boundary-grid .mono {
+  display: block;
+  font-size: 8px;
+  color: var(--muted);
+  margin-top: 24px;
+}
+.architecture-boundaries > .button {
+  margin-top: 65px;
+}
+@media (max-width: 1023px) {
+  .docs-layout {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 6%;
+  }
+  .docs-agent-list {
+    grid-template-columns: 1fr;
+  }
+  .docs-sidebar nav a {
+    font-size: 11px;
+  }
+}
+@media (max-width: 767px) {
+  .reference-hero {
+    padding-top: 130px;
+    padding-bottom: 45px;
+  }
+  .reference-hero h1 {
+    font-size: 12vw;
+  }
+  .reference-hero .eyebrow {
+    font-size: 7px;
+    margin-bottom: 23px;
+  }
+  .reference-hero > p {
+    font-size: 14px;
+    margin-top: 25px;
+  }
+  .docs-layout {
+    grid-template-columns: 1fr;
+    gap: 43px;
+    padding-top: 32px;
+    padding-bottom: 85px;
+  }
+  .docs-sidebar {
+    position: static;
+  }
+  .docs-sidebar nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 23px;
+  }
+  .docs-sidebar nav a {
+    font-size: 11px;
+  }
+  .docs-architecture-link {
+    margin-top: 25px;
+  }
+  .docs-content h2 {
+    font-size: 29px;
+  }
+  .docs-content p {
+    font-size: 13px;
+  }
+  .docs-content > section + section {
+    margin-top: 55px;
+    padding-top: 45px;
+  }
+  .docs-callout {
+    padding: 19px;
+    gap: 13px;
+  }
+  .docs-callout strong {
+    font-size: 12px;
+  }
+  .docs-callout p {
+    font-size: 11px;
+  }
+  .docs-callout > svg {
+    width: 20px;
+  }
+  .docs-workflow span {
+    font-size: 11px;
+  }
+  .docs-code > div {
+    padding: 10px 15px;
+  }
+  .docs-code > div > .mono {
+    font-size: 6px;
+  }
+  .docs-code .copy-button {
+    font-size: 9px;
+  }
+  .docs-code pre {
+    padding: 18px;
+    font-size: 10px;
+  }
+  .docs-content .text-link {
+    font-size: 11px;
+    gap: 12px;
+  }
+  .docs-agent-list article {
+    padding: 23px;
+  }
+  .docs-agent-list p {
+    min-height: auto;
+  }
+  .docs-review-flow {
+    gap: 18px 12px;
+  }
+  .docs-review-flow span {
+    font-size: 9px;
+    gap: 5px;
+  }
+  .docs-review-flow span svg {
+    width: 16px;
+  }
+  .docs-security-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  .docs-content #demo > .button {
+    width: 100%;
+    font-size: 11px;
+    padding-inline: 16px;
+    gap: 15px;
+  }
+  .architecture-page .system-standalone {
+    padding-top: 25px;
+  }
+  .architecture-boundaries > h2 {
+    font-size: 9.5vw;
+  }
+  .boundary-grid {
+    grid-template-columns: 1fr;
+    gap: 44px;
+    margin-top: 40px;
+  }
+  .boundary-grid h3 {
+    font-size: 24px;
+  }
+  .boundary-grid p {
+    font-size: 13px;
+  }
+  .boundary-grid .mono {
+    font-size: 7px;
+  }
+  .architecture-boundaries > .button {
+    margin-top: 45px;
+    font-size: 12px;
+  }
+}

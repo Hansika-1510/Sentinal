@@ -1,0 +1,2949 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist);
+  --font-code: var(--font-mono);
+  --color-background: #5c7285;
+  --color-foreground: #fefefc;
+  --color-signal: #f6f4fa;
+}
+
+:root {
+  /* Colour Hunt — butter cream, sky blue, mauve, dusty brown — on the slate the
+     user supplied (#5c7285), with the same beige panels. The ground darkening
+     from #6f9acb to this is the theme's second full inversion: the beige panels
+     keep their dark ink, and the page ground takes light ink instead. The
+     consequence is that this is no longer one ink set over two surfaces. It is
+     two planes, and everything below is arranged around that split.
+
+     The binding constraint is arithmetic, not taste. This ground sits at
+     luminance 0.160, so AA needs the ink at 0.874 or above — and a maximally
+     saturated search says the most colourful hex that still clears 4.5:1 on it
+     has a chroma of about 0.17. There is no room for a hue there. Ground ink is
+     near-white by force, and the ladder underneath it is the widest four steps
+     that fit in the window between 4.5 and the 5.00:1 ceiling pure white
+     reaches. It is a flat ladder: 4.95 -> 4.72 -> 4.57 -> 4.52. Headings and
+     captions on the ground read at nearly the same weight, and that is the
+     honest cost of the ground the user chose.
+
+     So hierarchy does not live on the ground any more; it lives in the panels,
+     which keep their original ink and their 10-14:1 range. Those rules do not
+     merely inherit differently — see the panel plane rule after this block,
+     where the dark tokens are re-declared for every beige surface in one list.
+
+     One more note about the accent: the mauve that used to be the plum type is
+     now too dark to read on this ground (1.55:1). It survives as a fill and as
+     --accent-ink, and the ground-plane accent text is its own near-white. */
+  --bg: #5c7285;
+  --surface: #efe3c8;
+  --surface-raised: #e6d7b4;
+  /* The hairlines have to clear the 3:1 boundary floor *against this ground*,
+     not against the panels, because the ground is now the surface they
+     mostly sit on. Light, near-white rules that used to vanish into #6f9acb
+     are the only kind that read here; both step just above 3:1 and stay under
+     --dim's 4.52, so a rule never competes with the words it separates. */
+  --line: #c9d7e2; /* 3.40:1 */
+  --line-strong: #d4e1ea; /* 3.75:1 */
+  --dim: #eef4fb; /* 4.52:1 */
+  --mid: #f2f5fa; /* 4.57:1 */
+  --muted: #fcf8f1; /* 4.72:1 */
+  --text: #fefefc; /* 4.95:1 */
+  /* The accent splits by job, as before, but the split moved: the plum is no
+     longer legible as type on the ground, so it becomes the fill and the label
+     of a filled control. --accent-ink is the *light* label for the plum fill
+     (9.39:1) and, on a beige panel, the dark label for a light fill — it is the
+     one token whose polarity flips with the plane, which is why the buttons use
+     it on both. --accent-text is plum type meant for a beige panel only.
+     Every state colour is solved against the ground rather than a fill: green
+     and amber are drawn as 3-5% washes, so the wash barely moves the surface
+     underneath and the ground is what their text actually sits on. */
+  --accent: #d7cfe6; /* 3.32:1 as a boundary */
+  --accent-ink: #322545; /* 9.39:1 on the #d7cfe6 fill */
+  --accent-text: #f6f4fa; /* 4.58:1 */
+  --accent-wash: #ffffff1a;
+  --green: #d4ffe2; /* 4.57:1 */
+  --amber: #fff4d4; /* 4.56:1 */
+  --gutter: clamp(24px, 4.45vw, 88px);
+  --section-space: clamp(88px, 10vw, 160px);
+  color-scheme: dark;
+}
+
+/* ## The panel plane.
+
+   Every surface in the page that paints itself beige is listed here, in one
+   comma-separated rule, and re-declares the dark tokens for its whole subtree.
+   Custom properties inherit, so one rule covers every descendant without
+   naming any of them.
+
+   The `color` assertion at the bottom is not decoration and the rule does not
+   work without it. `body` declares `color: var(--text)` and resolves that
+   substitution *at the body* — on the ground, to near-white. A descendant
+   inherits a finished colour, not a pending variable, so re-declaring `--text`
+   inside a panel changes nothing for text that merely inherited. Asserting
+   `color: var(--text)` here resolves the variable in the panel's own context;
+   and because `color` inherits, it then carries the dark value down to every
+   descendant that does not set a colour of its own.
+
+   The list is empirical. It was assembled by asking the browser which elements
+   actually composite onto beige — a static reading of the stylesheets
+   over-reports badly, because DOM nesting crosses class-name boundaries
+   (`.root-card-bottom` lives inside `.root-cause-card`, `.evidence-detail`
+   inside `.evidence-section`, `.journey-main` inside `.journey-focus`). */
+.dialog, .environment-select select, .hero-commit, .hero-incident, .nav-pill,
+.node-icon, .observer-core, .observer-input, .observer-input.active,
+.observer-input:hover, .observer-insight, .observer-section, .problem-piece,
+.product-surface, .runtime-incident-banner, .runtime-ribbon,
+.service-tabs button.active, .site-nav .brand, .system-node, .system-section,
+.advisor-code-sheet,
+.advisor-panel, .agent-card, .agent-card-code, .agent-card-memory,
+.agent-card-response, .agent-card-signal, .agent-card-trace, .agents-section,
+.approval-card, .approval-reason textarea, .archive-record, .archive-shadow,
+.archive-shadow-1, .dashboard-loader, .evidence-check, .evidence-node,
+.evidence-node.selected, .evidence-section, .final-cta, .fix-workspace,
+.guard-seal, .guard-sheet, .guard-sheet.sheet-back, .loop-orbit-node.active,
+.memory-sheet, .recovery-comparison button.active, .recovery-section,
+.response-gate > div:not(.response-lock), .response-lock, .root-cause-card,
+.sheet-three, .sheet-two, .trace-center, .trace-node, .trace-three,
+.dashboard-app, .dashboard-code-example, .dashboard-incident-summary,
+.dashboard-metrics, .dashboard-search, .dashboard-service-chart,
+.dashboard-sidebar, .dashboard-sidebar nav button.active,
+.dashboard-sidebar nav button:hover, .dashboard-toast, .historical-lesson,
+.small-event-dot, .verify-recovery-button, .verify-recovery-button:hover,
+.docs-agent-list article, .docs-callout, .docs-code {
+  --line: #243a56;
+  --line-strong: #1e3252;
+  --dim: #1e3146;
+  --mid: #1d2e43;
+  --muted: #162536;
+  --text: #1f150c;
+  --accent: #4d3c60;
+  --accent-ink: #f4ecda;
+  --accent-text: #322545;
+  --accent-wash: #4d3c6012;
+  --green: #162d1e;
+  --amber: #382c0c;
+  color-scheme: light;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  background: var(--bg);
+  scroll-behavior: smooth;
+  scroll-padding-top: 100px;
+}
+body {
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font-family: var(--font-geist), Arial, sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+body,
+main {
+  overflow-x: clip;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+select {
+  cursor: pointer;
+}
+button {
+  color: inherit;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  border: 0;
+  background: none;
+}
+button,
+a {
+  touch-action: manipulation;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 5px;
+}
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+h1,
+h2,
+h3,
+h4,
+p {
+  margin: 0;
+}
+svg {
+  flex-shrink: 0;
+}
+img {
+  max-width: 100%;
+}
+em {
+  font-style: normal;
+}
+.page-padding {
+  padding-inline: max(var(--gutter), calc((100vw - 1680px) / 2));
+}
+.section {
+  padding-block: var(--section-space);
+}
+.mono,
+code,
+pre {
+  font-family: var(--font-mono), monospace;
+}
+.mono {
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.065em;
+}
+.accent,
+.text-incident {
+  color: var(--accent-text);
+}
+.text-recovered {
+  color: var(--green);
+}
+.text-warning {
+  color: var(--amber);
+}
+.muted {
+  color: var(--muted);
+}
+.section-title {
+  font-size: clamp(48px, 6.5vw, 106px);
+  font-weight: 570;
+  line-height: 0.98;
+  letter-spacing: -0.065em;
+}
+.section-copy {
+  max-width: 440px;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin-top: 28px;
+}
+.eyebrow {
+  display: block;
+  color: var(--muted);
+  margin-bottom: 26px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+.product-surface {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.demo-label {
+  font-family: var(--font-mono), monospace;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.075em;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+.skip-link {
+  position: fixed;
+  left: 24px;
+  top: 10px;
+  z-index: 60;
+  transform: translateY(-160%);
+  padding: 14px 24px;
+  border-radius: 6px;
+  /* Same pairing as `.button-light`: the fill is the plane's ink, so the label
+     has to be that ink's anti-colour rather than the page ground, which is
+     what `--bg` used to be when the ground was light. */
+  background: var(--text);
+  color: var(--accent-ink);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+.button {
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  border-radius: 6px;
+  padding: 16px 22px;
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition:
+    background 0.25s,
+    color 0.25s;
+}
+.button-primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.button-primary:hover {
+  /* Blended, not fixed, for the same reason as .button-light:hover: the fill
+     and its label swap polarity between the two planes, so hover has to move
+     away from the label whichever way round they are. */
+  background: color-mix(in srgb, var(--accent) 88%, var(--text));
+}
+.button-light {
+  /* The label is the plane's anti-ink, so it inverts with the fill: a dark
+     button under a cream label on a beige panel, a light button under a dark
+     label on the slate ground. --bg no longer works here — it is the ground,
+     so inside a panel it handed slate type to a near-black fill. */
+  background: var(--text);
+  color: var(--accent-ink);
+}
+.button-light:hover {
+  /* Mixed rather than fixed. A hard-coded darker hex would drive the ground
+     plane's light fill down toward its own dark label and cost the contrast the
+     hover is supposed to add; blending toward --text moves away from the label
+     on both planes. */
+  background: color-mix(in srgb, var(--text) 86%, var(--bg));
+}
+.button-outline {
+  border: 1px solid var(--line);
+  background: transparent;
+}
+.button-outline:hover {
+  /* --accent-wash is the one wash token that flips with the plane: white at 10%
+     over the slate ground, plum at 7% over a beige panel. */
+  background: var(--accent-wash);
+  border-color: var(--line);
+}
+.button-text {
+  padding-inline: 0;
+  gap: 10px;
+  color: var(--text);
+  background: transparent;
+}
+.button-text:hover {
+  color: var(--accent-text);
+}
+.button-arrow {
+  width: 18px;
+  transition: transform 0.3s;
+}
+.button:hover .button-arrow,
+.text-link:hover .button-arrow {
+  transform: translateX(4px);
+}
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.text-link:hover {
+  color: var(--accent-text);
+}
+/* Sweeping underline — see MagneticLink's `underline` prop.
+   `--current` is the resting line; on hover it leaves to the right while
+   `--next` arrives from the left, so the line reads as travelling rather than
+   blinking. Both keep a fixed transform-origin, which is why there are two. */
+.link-label {
+  position: relative;
+  display: inline-block;
+}
+.link-line {
+  position: absolute;
+  right: 0;
+  bottom: -4px;
+  left: 0;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left center;
+  transition: transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.link-line--current {
+  transform: scaleX(1);
+}
+.link-line--next {
+  transform: scaleX(0);
+}
+.text-link:hover .link-line--current,
+.text-link:focus-visible .link-line--current {
+  transform: scaleX(0);
+  transform-origin: right center;
+}
+.text-link:hover .link-line--next,
+.text-link:focus-visible .link-line--next {
+  transform: scaleX(1);
+  transition-delay: 0.07s;
+}
+.icon-button {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.icon-button:hover {
+  background: #1f150c0a;
+  color: var(--text);
+}
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono), monospace;
+  font-size: 10px;
+  color: var(--muted);
+  padding: 8px 0;
+}
+.copy-button:hover {
+  color: var(--text);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.brand > span:last-child {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.055em;
+}
+.brand-mark {
+  position: relative;
+  display: inline-block;
+  width: 30px;
+  height: 31px;
+  flex: 0 0 30px;
+}
+.brand-mark i {
+  position: absolute;
+  width: 19px;
+  height: 12px;
+  border: 2px solid currentColor;
+  transform: rotate(-30deg) skewX(30deg);
+  left: 5px;
+  top: 2px;
+}
+.brand-mark i:nth-child(2) {
+  top: 8px;
+  border-top: 0;
+}
+.brand-mark i:nth-child(3) {
+  top: 14px;
+  border-top: 0;
+}
+.site-nav {
+  position: fixed;
+  top: 20px;
+  left: var(--gutter);
+  right: var(--gutter);
+  z-index: 20;
+  /* Three tracks, so the pill sits in the true centre of the viewport rather
+     than of whatever is left of the brand. The right track is empty on desktop
+     and holds the menu toggle below 1024px. */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  min-height: 58px;
+  /* The bar is not a surface — it paints nothing and only positions the two
+     plates. Without this the empty tracks either side would still swallow
+     clicks meant for the page underneath. */
+  pointer-events: none;
+}
+.site-nav > * {
+  pointer-events: auto;
+}
+
+/* ## The brand plate.
+
+   The header paints nothing, so the wordmark needs a surface of its own. It is
+   fixed at the top of the viewport while the page scrolls beige panels under
+   it, and the ground's near-white ink measures 1.26:1 against those — the brand
+   cannot just inherit the ground tokens the way it did when the whole bar
+   turned beige on scroll. Same beige, same capsule radius, same top ridge as
+   the nav pill, so the header reads as two plates on the slate rather than one.
+
+   Scoped to `.site-nav` on purpose: `Brand` is also the footer's, the 404's and
+   the dashboard's, and none of those sit on this surface. */
+.site-nav .brand {
+  position: relative;
+  justify-self: start;
+  height: 54px;
+  padding-inline: 18px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 40px #ffffff2b,
+    inset 0 0 0 0.5px #3c281424;
+}
+.site-nav .brand::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    #ffffff00 0%,
+    #ffffffb8 5%,
+    #ffffffe0 15%,
+    #ffffffe0 85%,
+    #ffffffb8 95%,
+    #ffffff00 100%
+  );
+  filter: blur(0.3px);
+  pointer-events: none;
+}
+.site-nav .brand:focus-visible {
+  /* --accent on this beige is 7.74:1, well past the 3:1 the ring needs. */
+  outline: 2px solid var(--accent);
+  /* Inset, because the plate clips its overflow at the rounded ends. */
+  outline-offset: -3px;
+}
+
+/* ## The navigation pill.
+
+   Beige on both planes, so its class is in the panel-plane token list above and
+   its ink is the panel ink. It started as a near-white silver pill with #1a1a1a
+   type; the material treatment survives, the surface is the project's beige.
+
+   The collapse is CSS. Collapsed, every link except the active one is drawn at
+   zero width; `:hover` and `:focus-within` open them all. `:focus-within` is
+   the load-bearing half — the component this came from opened on hover alone,
+   so its links were unreachable by keyboard.
+
+   Nothing here is ever `display: none`, `visibility: hidden` or `aria-hidden`.
+   The links stay in the DOM and in the tab order in both states; only their
+   drawn width changes. Clipping them with `max-width` rather than hiding them
+   is what keeps the collapsed state honest to a screen reader. */
+.nav-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 54px;
+  padding-inline: 7px;
+  border-radius: 999px;
+  background: var(--surface);
+  overflow: hidden;
+  /* The inner glow and the hairline edge follow the pill's own radius, so they
+     live here rather than on the rectangular gloss layer underneath. */
+  box-shadow:
+    inset 0 0 40px #ffffff2b,
+    inset 0 0 0 0.5px #3c281424;
+}
+.nav-pill a {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  max-width: 190px;
+  padding: 11px 14px;
+  overflow: hidden;
+  color: var(--mid);
+  font-size: 15px;
+  font-weight: 510;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  transition:
+    max-width 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+    padding 0.42s cubic-bezier(0.34, 1.4, 0.64, 1),
+    opacity 0.26s ease,
+    color 0.2s;
+}
+.nav-pill a:hover,
+.nav-pill a[data-active="true"] {
+  color: var(--text);
+}
+/* Weight carries the active state as much as colour does: on a beige panel
+   every legal ink sits between 10.4 and 14.1:1, so the ladder is far too
+   compressed to separate two items by tone alone. */
+.nav-pill a[data-active="true"] {
+  font-weight: 680;
+}
+.nav-pill a:focus-visible {
+  /* --accent on this beige is 7.74:1, well past the 3:1 the ring needs. */
+  outline: 2px solid var(--accent);
+  /* Inset, because the pill clips its overflow at the rounded ends. */
+  outline-offset: -3px;
+  border-radius: 999px;
+}
+/* Collapsed: the active label is the whole pill. The delay sits on this rule
+   alone, so opening is immediate and closing waits — a CSS transition takes its
+   timing from the state being moved *to*. */
+.nav-pill:not(:hover):not(:focus-within) a:not([data-active="true"]) {
+  max-width: 0;
+  padding-inline: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition-delay: 0.45s;
+}
+
+.nav-pill-gloss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.nav-pill-gloss i {
+  position: absolute;
+  display: block;
+}
+/* The machined highlight along the top edge. */
+.gloss-ridge {
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    #ffffff00 0%,
+    #ffffffb8 5%,
+    #ffffffe0 15%,
+    #ffffffe0 85%,
+    #ffffffb8 95%,
+    #ffffff00 100%
+  );
+  filter: blur(0.3px);
+}
+/* Top hemisphere catch — the upper half sits a shade lighter than the lower. */
+.gloss-hemi {
+  inset: 0 0 auto;
+  height: 55%;
+  background: linear-gradient(180deg, #ffffff38 0%, #ffffff1f 30%, #ffffff0d 60%, #ffffff00 100%);
+}
+/* Directional wash from the top-left, so the bar has a light side. */
+.gloss-dir {
+  inset: 0;
+  background: linear-gradient(135deg, #ffffff30 0%, #ffffff1a 20%, #ffffff08 40%, #ffffff00 65%);
+}
+/* The specular blob — this is the layer that actually reads as "polished". */
+.gloss-blob {
+  left: 12%;
+  top: 15%;
+  width: 104px;
+  height: 13px;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at center,
+    #ffffffb0 0%,
+    #ffffff52 40%,
+    #ffffff14 70%,
+    #ffffff00 100%
+  );
+  filter: blur(4px);
+  transform: rotate(-12deg);
+}
+/* Bottom curvature. A warm shadow rather than a neutral one, so the beige does
+   not go grey at the base — and soft enough that the ink over it keeps its
+   contrast, since the deepest stop still measures 8.9:1 against --text. */
+.gloss-curve {
+  inset: auto 0 0;
+  height: 50%;
+  background: linear-gradient(0deg, #3c281414 0%, #3c28140a 25%, #3c281403 50%, #3c281400 100%);
+}
+.gloss-contact {
+  inset: auto 0 0;
+  height: 22%;
+  background: linear-gradient(0deg, #3c281426 0%, #3c281400 100%);
+  filter: blur(2px);
+}
+
+/* No animation anywhere under reduced motion, so the pill is simply always
+   open. Scoped to desktop: below 1024px the expanded row would not fit, and the
+   menu toggle is doing the work there either way. */
+@media (prefers-reduced-motion: reduce) and (min-width: 1024px) {
+  .nav-pill a {
+    transition: none;
+  }
+  .nav-pill:not(:hover):not(:focus-within) a:not([data-active="true"]) {
+    max-width: 190px;
+    padding-inline: 14px;
+    opacity: 1;
+    pointer-events: auto;
+    transition-delay: 0s;
+  }
+}
+
+@media (max-width: 1023px) {
+  /* There is no hover to open the pill with on a touch width, and at 390px the
+     expanded row would overflow the header — so the pill stays on its active
+     label and the menu toggle carries the rest. */
+  .nav-pill a:not([data-active="true"]) {
+    max-width: 0;
+    padding-inline: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: none;
+  }
+}
+
+.menu-toggle {
+  display: none;
+}
+.dialog {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
+  background: #eaddbe;
+  color: var(--text);
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  box-shadow: 0 24px 100px #33506f2d;
+}
+.dialog::backdrop {
+  background: #5c7285bc;
+  backdrop-filter: blur(8px);
+}
+.dialog-content {
+  padding: 30px;
+}
+.dialog-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.dialog-heading h2 {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+}
+.mobile-menu nav {
+  display: flex;
+  flex-direction: column;
+}
+.mobile-menu nav a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-block: 18px;
+  font-size: 24px;
+  letter-spacing: -0.04em;
+  border-bottom: 1px solid var(--line);
+}
+
+/* HERO: type is the foreground; the instrument, evidence, and log stream are one scene. */
+.hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+  padding-top: 113px;
+  padding-bottom: 60px;
+}
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 29px;
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.11em;
+  position: relative;
+  z-index: 1;
+}
+.signal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.hero-title {
+  font-size: clamp(82px, 10.6vw, 179px);
+  line-height: 0.91;
+  letter-spacing: -0.073em;
+  font-weight: 610;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+.hero-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.065em;
+  margin-bottom: -0.04em;
+}
+.hero-line > span {
+  display: block;
+}
+.hero-last-line {
+  white-space: nowrap;
+}
+.hero-title em {
+  color: var(--accent-text);
+}
+.hero-signal {
+  position: absolute;
+  z-index: 0;
+  width: min(53vw, 810px);
+  height: min(55vw, 810px);
+  right: -3vw;
+  top: 50px;
+}
+.lens-art {
+  position: absolute;
+  inset: 0;
+}
+.lens-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity 0.4s;
+}
+.lens-canvas {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.7s;
+}
+.lens-art.is-ready .lens-canvas {
+  opacity: 1;
+}
+.lens-art.is-ready .lens-poster {
+  opacity: 0;
+}
+.lens-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.lens-orbit-label {
+  position: absolute;
+  top: 9%;
+  right: 19%;
+  font-size: 8px;
+  letter-spacing: 0.15em;
+  color: var(--mid);
+}
+.lens-coordinate {
+  position: absolute;
+  color: var(--mid);
+  font-size: 8px;
+}
+.coordinate-a {
+  left: 13%;
+  top: 42%;
+}
+.coordinate-b {
+  right: 15%;
+  bottom: 14%;
+}
+.hero-incident {
+  position: absolute;
+  z-index: 2;
+  top: 75%;
+  right: 17%;
+  width: 315px;
+  background: #e9dbbbf5;
+  border: 1px solid #253c5a;
+  border-radius: 9px;
+  padding: 15px 17px 0;
+  transform: rotate(-3deg);
+  box-shadow: 0 14px 40px #33506f2d;
+  transition:
+    transform 0.3s,
+    border-color 0.3s;
+}
+.hero-incident:hover {
+  transform: rotate(0deg) translateY(-5px);
+  border-color: var(--accent);
+}
+.incident-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--accent-text);
+}
+.incident-card-top .mono {
+  display: flex;
+  align-items: center;
+  font-size: 8px;
+  letter-spacing: 0.045em;
+  gap: 7px;
+}
+.status-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.status-dot.is-green {
+  background: var(--green);
+}
+.hero-incident-body {
+  margin-top: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hero-incident-body > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.hero-incident-body strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.hero-incident-body .mono {
+  color: #2c1f13;
+  font-size: 7px;
+  letter-spacing: -0.025em;
+}
+.incident-number {
+  font-size: 35px;
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  white-space: nowrap;
+}
+.incident-number small {
+  font-size: 14px;
+  color: var(--muted);
+  letter-spacing: -0.02em;
+}
+.incident-sparkline {
+  height: 38px;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  margin-top: 9px;
+  overflow: hidden;
+  opacity: 0.6;
+}
+.incident-sparkline i {
+  flex: 1;
+  background: var(--accent);
+  opacity: 0.5;
+  height: 100%;
+  transform-origin: bottom;
+  transition: transform 0.6s;
+}
+.incident-sparkline i:nth-child(-n + 11) {
+  background: #233852;
+  opacity: 0.6;
+}
+.hero-commit {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  right: 9%;
+  top: 23%;
+  width: 242px;
+  padding: 14px 15px;
+  background: #ede0c3ed;
+  border: 1px solid #253c5a;
+  border-radius: 7px;
+  transform: rotate(4deg);
+  color: #251a0f;
+}
+.hero-commit > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.hero-commit .mono {
+  font-size: 7px;
+  color: #18283a;
+}
+.hero-commit strong {
+  font-size: 10px;
+  font-weight: 400;
+}
+.trace-corner {
+  width: 6px;
+  height: 6px;
+  border-top: 1px solid var(--accent);
+  border-right: 1px solid var(--accent);
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+.hero-bottom {
+  margin-top: 42px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  position: relative;
+  z-index: 1;
+}
+.hero-description {
+  max-width: 456px;
+}
+.hero-description p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
+  max-width: 420px;
+}
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 27px;
+  margin-top: 27px;
+}
+.play-symbol {
+  height: 18px;
+  width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+}
+.play-symbol::after {
+  content: "";
+  width: 0;
+  height: 0;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-left: 4px solid var(--text);
+  margin-left: 1px;
+}
+.hero-side-note {
+  display: flex;
+  gap: 17px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+  margin-right: 31%;
+  margin-bottom: 9px;
+}
+.runtime-ribbon {
+  display: flex;
+  min-height: 59px;
+  align-items: stretch;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  position: relative;
+  background: #f2e8d0;
+}
+.ribbon-label {
+  display: flex;
+  align-items: center;
+  padding: 0 28px 0 var(--gutter);
+  gap: 11px;
+  white-space: nowrap;
+  color: #1f150c;
+  border-right: 1px solid var(--line);
+  font-size: 9px;
+}
+.ribbon-label svg {
+  color: var(--accent-text);
+}
+.ribbon-window {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+}
+.ribbon-track {
+  display: flex;
+  width: max-content;
+  animation: data-stream 28s linear infinite;
+}
+.ribbon-group {
+  display: flex;
+  flex-shrink: 0;
+}
+.runtime-event {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-inline: 28px;
+  font-size: 8px;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+}
+.runtime-event time {
+  color: #1c2d41;
+}
+.runtime-event > span {
+  color: #281c11;
+}
+.runtime-event b {
+  font-weight: 400;
+}
+.log-error {
+  color: var(--accent-text);
+}
+.log-ok {
+  color: #291d12;
+}
+.ribbon-demo {
+  color: #18283a;
+  display: grid;
+  place-items: center;
+  padding-inline: 20px;
+  font-size: 7px;
+}
+
+/* Scattered context becomes a readable chain. */
+.problem {
+  padding-top: 156px;
+}
+.problem-intro {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 10%;
+  align-items: start;
+}
+.statement {
+  font-size: clamp(47px, 5.3vw, 84px);
+  letter-spacing: -0.064em;
+  line-height: 1.08;
+  font-weight: 480;
+}
+.statement > .split-line {
+  color: var(--text);
+}
+.statement > .split-line.is-dim {
+  color: var(--muted);
+}
+.problem-phrases {
+  display: flex;
+  flex-direction: column;
+  padding-top: 7px;
+  gap: 15px;
+}
+.problem-phrases span {
+  font-size: clamp(17px, 1.7vw, 27px);
+  letter-spacing: -0.04em;
+  color: #271b10;
+}
+.problem-phrases span:last-child {
+  color: var(--text);
+}
+.problem-pieces {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+  margin-top: 105px;
+}
+.problem-piece {
+  padding: 22px 20px;
+  background: #eaddbe;
+  border: 1px solid #253b58;
+  border-radius: 8px;
+  position: relative;
+}
+.piece-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 32px;
+  color: #162536;
+  font-size: 8px;
+}
+.problem-piece strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  margin-bottom: 12px;
+}
+.problem-piece > .mono {
+  color: #152334;
+  font-size: 8px;
+  letter-spacing: -0.015em;
+}
+.piece-port {
+  position: absolute;
+  top: 50%;
+  right: -4px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  border-radius: 50%;
+}
+.problem-piece:last-child .piece-port {
+  display: none;
+}
+.pieces-line {
+  position: absolute;
+  top: 50%;
+  height: 1px;
+  width: 100%;
+  background: var(--accent);
+  opacity: 0.45;
+}
+.problem-outro {
+  margin-top: 105px;
+  font-size: clamp(32px, 3.8vw, 58px);
+  line-height: 1.14;
+  letter-spacing: -0.055em;
+  text-align: center;
+}
+.problem-outro > span {
+  color: var(--muted);
+}
+
+/* A complete, explorable lifecycle with one scroll-owned active step. */
+.system-section {
+  position: relative;
+  min-height: 100dvh;
+  padding-top: 115px;
+  padding-bottom: 48px;
+  border-top: 1px solid var(--line);
+  background: #f2e8d0;
+}
+.system-header {
+  position: relative;
+}
+.system-header .section-title {
+  font-size: clamp(46px, 5.5vw, 86px);
+}
+.heading-mark {
+  color: var(--accent-text);
+  position: absolute;
+  right: 5px;
+  top: 43px;
+  transform: scale(2.9);
+  transform-origin: right top;
+}
+.system-map {
+  position: relative;
+  margin-top: 35px;
+}
+.system-wiring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 215px;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+/* The 3D lifecycle rail — see JourneyRoute3D. Mirrors .system-wiring's box so it
+   threads the same icon centres, and takes no pointer events so the node
+   buttons keep every click. */
+.journey-3d {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 215px;
+  z-index: 0;
+  pointer-events: none;
+}
+/* Cross-fade the drawn route out only once a 3D rail is actually live, so a
+   failed or unavailable WebGL context leaves the SVG route in place. */
+.system-map:has(.journey-3d canvas) .system-wiring {
+  opacity: 0;
+}
+.route-base {
+  stroke: #273f5d;
+  stroke-width: 1;
+}
+.route-active {
+  stroke: var(--accent);
+  stroke-width: 1.3;
+  stroke-dasharray: 1;
+  transition: stroke-dashoffset 0.55s;
+}
+.system-nodes {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: 95px 95px;
+  row-gap: 19px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.system-nodes li {
+  grid-column: var(--node-column);
+  grid-row: var(--node-row);
+  display: flex;
+  justify-content: center;
+}
+.system-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 23px 2px 0;
+  font-size: 10px;
+  color: #19293c;
+  transition: color 0.25s;
+}
+.node-icon {
+  height: 49px;
+  width: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8dab9;
+  border: 1px solid #253b58;
+  border-radius: 10px;
+  transition:
+    background 0.3s,
+    border-color 0.3s,
+    transform 0.3s;
+}
+.system-node:hover .node-icon {
+  transform: translateY(-4px);
+  border-color: #294261;
+}
+.system-node.is-past {
+  color: #1f150c;
+}
+.system-node.is-past .node-icon {
+  border-color: #273f5e;
+}
+.system-node.is-active {
+  color: var(--text);
+}
+.system-node.is-active .node-icon {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: #4d3c6010;
+}
+.system-node.node-recovery.is-active .node-icon {
+  border-color: var(--green);
+  color: var(--green);
+  background: #162d1e09;
+}
+.journey-focus {
+  display: grid;
+  grid-template-columns: 80px 1.7fr 1fr;
+  align-items: center;
+  gap: 35px;
+  border-top: 1px solid #253b58;
+  margin-top: 28px;
+  padding-top: 30px;
+  min-height: 154px;
+}
+.journey-index {
+  font-size: 29px;
+  color: var(--accent-text);
+  letter-spacing: -0.07em;
+  align-self: start;
+  padding-top: 2px;
+}
+.journey-index span {
+  font-size: 10px;
+  color: #162536;
+  letter-spacing: 0;
+}
+.journey-group {
+  color: #2e2114;
+  font-size: 8px;
+}
+.journey-main h3 {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 29px;
+  font-weight: 480;
+  letter-spacing: -0.045em;
+  margin: 6px 0 8px;
+}
+.journey-main h3 svg {
+  color: var(--accent-text);
+}
+.journey-main p {
+  font-size: 12px;
+  color: #281c11;
+  line-height: 1.65;
+  max-width: 485px;
+}
+.journey-readout {
+  border-left: 1px solid #253b58;
+  padding-left: 37px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.journey-readout .mono {
+  color: #152334;
+  font-size: 8px;
+}
+.journey-readout strong {
+  font-size: 15px;
+  font-weight: 450;
+  letter-spacing: -0.025em;
+}
+.journey-readout .owner {
+  font-size: 7px;
+}
+.system-footer {
+  margin-top: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+}
+.system-footer p {
+  color: #152334;
+  font-size: 11px;
+}
+.system-footer .text-link {
+  font-size: 11px;
+}
+
+/* Interactive telemetry, not a screenshot. */
+.runtime-section {
+  padding-bottom: 120px;
+}
+.runtime-panel {
+  margin-top: 61px;
+  transform-origin: center;
+  box-shadow: 0 30px 100px #33506f2d;
+}
+.product-toolbar {
+  min-height: 64px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 26px;
+}
+.product-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+}
+.product-breadcrumb .brand-mark {
+  transform: scale(0.62);
+  width: 20px;
+  flex-basis: 20px;
+}
+.product-breadcrumb > span:last-child {
+  color: var(--muted);
+}
+.breadcrumb-divider {
+  color: #1e3146;
+}
+.runtime-controls {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.environment-select {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+.environment-select select {
+  appearance: none;
+  background: #dfcea7;
+  border: 1px solid #253c59;
+  border-radius: 5px;
+  color: #22180e;
+  font-family: var(--font-mono), monospace;
+  font-size: 9px;
+  padding: 7px 26px 7px 10px;
+}
+.environment-select svg {
+  position: absolute;
+  right: 8px;
+  color: #2c1f13;
+  pointer-events: none;
+}
+.runtime-service-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 30px;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.service-tabs {
+  display: flex;
+  gap: 5px;
+}
+.service-tabs button {
+  padding: 8px 12px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.service-tabs button:hover {
+  color: var(--text);
+}
+.service-tabs button.active {
+  background: #d9c79c;
+  color: var(--text);
+}
+.runtime-state {
+  font-size: 8px;
+  display: flex;
+  gap: 7px;
+  align-items: center;
+}
+.runtime-state:not(.text-incident) .status-dot {
+  background: #2d2014;
+}
+.runtime-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 32px 34px;
+  gap: 28px;
+}
+.runtime-metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.runtime-metrics .mono {
+  font-size: 8px;
+  color: #2c2014;
+}
+.runtime-metrics strong {
+  font-size: clamp(29px, 3.1vw, 48px);
+  letter-spacing: -0.065em;
+  font-weight: 460;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.runtime-metrics strong small {
+  font-size: 16px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.runtime-metrics > div > span:last-child {
+  font-size: 9px;
+  color: #152334;
+}
+.runtime-metrics .health-metric strong {
+  font-size: 23px;
+  align-items: center;
+  gap: 11px;
+  min-height: 56px;
+}
+.health-metric svg {
+  color: var(--accent-text);
+}
+.runtime-chart-header {
+  padding: 0 34px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #2c2014;
+}
+.runtime-chart-header .mono {
+  font-size: 8px;
+}
+.playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.playback-controls > span {
+  margin-left: 12px;
+}
+.playback-controls .icon-button {
+  width: 27px;
+  height: 27px;
+}
+.telemetry-chart {
+  height: 250px;
+  padding-inline: 34px;
+}
+.telemetry-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.chart-compact {
+  height: 148px;
+  padding-inline: 0;
+}
+.runtime-logs {
+  margin: 20px 34px 0;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  color: #2e2114;
+  font-size: 8px;
+  margin-bottom: 16px;
+}
+.log-lines {
+  height: 94px;
+  overflow: hidden;
+}
+.log-row {
+  display: grid;
+  grid-template-columns: 125px 55px 1fr 90px 50px;
+  gap: 12px;
+  align-items: center;
+  font-size: 9px;
+  letter-spacing: -0.02em;
+  line-height: 26px;
+  color: #2a1e12;
+  white-space: nowrap;
+}
+.log-row code {
+  color: #1f150c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.log-row time {
+  color: #18283a;
+}
+.log-row b {
+  font-weight: 400;
+}
+.log-row.error > span:nth-child(2),
+.log-row.error b {
+  color: var(--accent-text);
+}
+.log-row.warn > span:nth-child(2),
+.log-row.warn b {
+  color: var(--amber);
+}
+.runtime-incident-banner {
+  min-height: 86px;
+  background: #dfcea7;
+  border-top: 1px solid #253b58;
+  padding: 21px 34px;
+  display: flex;
+  align-items: center;
+  gap: 17px;
+  transition:
+    background 0.4s,
+    border-color 0.4s;
+}
+.runtime-incident-banner.is-active {
+  background: #4d3c600b;
+  border-color: #4d3c6035;
+}
+.runtime-incident-banner > svg {
+  color: var(--accent-text);
+}
+.runtime-incident-banner > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.runtime-incident-banner strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.runtime-incident-banner .mono {
+  font-size: 8px;
+  color: #271b10;
+}
+.runtime-incident-banner > a {
+  margin-left: auto;
+}
+.runtime-incident-banner > a:hover {
+  color: var(--accent-text);
+}
+
+/* Signal ingestion, with selectable evidence streams. */
+.observer-section {
+  border-top: 1px solid var(--line);
+  background: #f2e9d2;
+  padding-bottom: 50px;
+}
+.observer-heading {
+  text-align: center;
+}
+.observer-heading .section-title {
+  font-size: clamp(48px, 8.1vw, 128px);
+}
+.observer-heading p {
+  color: #2e2114;
+  margin-top: 23px;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+.observer-stage {
+  height: 570px;
+  position: relative;
+}
+.observer-connections {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+}
+.observer-connections ellipse {
+  stroke: #243b5733;
+  stroke-width: 0.7;
+}
+.observer-wire {
+  stroke: #253b5842;
+  stroke-width: 1;
+}
+.observer-flow {
+  stroke: #20344f;
+  stroke-width: 2;
+  stroke-dasharray: 4 260;
+  opacity: 0.32;
+  animation: evidence-flow 12s linear infinite;
+}
+.observer-flow.is-active {
+  stroke: var(--accent);
+  opacity: 0.9;
+}
+.observer-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 148px;
+  height: 148px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 27px;
+  border: 1px solid #273f5e;
+  border-radius: 50%;
+  background: #e8d9b7;
+}
+.observer-core .brand-mark {
+  color: var(--text);
+  transform: scale(1.45);
+}
+.observer-core .mono {
+  font-size: 8px;
+  color: #251a0f;
+}
+.core-ring {
+  position: absolute;
+  inset: -12px;
+  border: 1px solid #28405f40;
+  border-radius: 50%;
+}
+.observer-input {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  transform: translate(-50%, -50%);
+  padding: 13px 18px;
+  border-radius: 7px;
+  border: 1px solid #253c59;
+  background: #e8dab9;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  color: #2a1e12;
+  font-size: 12px;
+  transition:
+    border-color 0.25s,
+    color 0.25s,
+    background 0.25s;
+}
+.observer-input:hover,
+.observer-input.active {
+  border-color: #382c0c4f;
+  color: var(--text);
+  background: #e3d3ae;
+}
+.observer-input.active svg {
+  color: var(--accent-text);
+}
+.observer-insight {
+  position: absolute;
+  right: 3%;
+  bottom: 6%;
+  width: 263px;
+  padding: 24px;
+  border: 1px solid #263d5a;
+  border-radius: 10px;
+  background: #e6d7b4;
+}
+.observer-insight .mono {
+  font-size: 8px;
+}
+.observer-insight > strong {
+  display: block;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin-top: 15px;
+}
+.observer-insight p {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #281c11;
+  line-height: 1.65;
+  min-height: 36px;
+}
+.observer-confidence {
+  border-top: 1px solid #253c59;
+  margin-top: 19px;
+  padding-top: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.observer-confidence > span {
+  color: #281c11;
+}
+.observer-confidence b {
+  font-size: 32px;
+  letter-spacing: -0.06em;
+  font-weight: 400;
+}
+.observer-confidence small {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+  padding-top: 55px;
+  padding-bottom: 30px;
+}
+.footer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 48px;
+}
+.footer-descriptor {
+  color: var(--muted);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  margin-top: 18px;
+}
+.footer-top nav {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 19px 50px;
+  padding-top: 8px;
+}
+.footer-top nav a {
+  font-size: 12px;
+  color: var(--text);
+}
+.footer-top nav a:hover {
+  color: var(--text);
+}
+.footer-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 85px;
+  color: var(--muted);
+  font-size: 9px;
+}
+.footer-bottom .mono {
+  font-size: 8px;
+}
+.back-top:hover {
+  color: var(--text);
+}
+.error-page {
+  min-height: 100dvh;
+  padding-top: 35px;
+  padding-bottom: 80px;
+}
+.error-page > div {
+  margin-top: 15vh;
+  max-width: 900px;
+}
+.error-page h1 {
+  font-size: clamp(55px, 9vw, 130px);
+  line-height: 1.05;
+  letter-spacing: -0.06em;
+  font-weight: 500;
+  margin-top: 25px;
+}
+.error-page p {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.7;
+  margin-top: 30px;
+}
+.error-page .button {
+  margin-top: 35px;
+}
+.error-page .text-link {
+  margin-left: 25px;
+}
+
+@keyframes data-stream {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes evidence-flow {
+  to {
+    stroke-dashoffset: -528;
+  }
+}
+@keyframes line-enter {
+  from {
+    transform: translateY(110%) rotate(2deg);
+    opacity: 0.2;
+  }
+  to {
+    transform: translateY(0) rotate(0);
+    opacity: 1;
+  }
+}
+@keyframes fade-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-line > span {
+    animation: line-enter 1.05s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .hero-line:nth-child(2) > span {
+    animation-delay: 0.12s;
+  }
+  .hero-line:nth-child(3) > span {
+    animation-delay: 0.24s;
+  }
+  .hero-eyebrow,
+  .hero-bottom {
+    animation: fade-enter 1s 0.45s both;
+  }
+  .journey-focus {
+    animation: fade-enter 0.35s both;
+  }
+}
+
+@media (min-width: 1700px) {
+  .hero {
+    min-height: 960px;
+    padding-top: 146px;
+  }
+  .hero-bottom {
+    margin-top: 60px;
+  }
+  .hero-signal {
+    right: calc((100vw - 1900px) / 2);
+    top: 70px;
+  }
+}
+@media (max-width: 1279px) {
+  .hero-title {
+    font-size: 10.8vw;
+  }
+  .hero {
+    padding-top: 130px;
+    min-height: 830px;
+  }
+  .hero-side-note {
+    display: none;
+  }
+  .hero-signal {
+    top: 95px;
+    width: 58vw;
+    height: 58vw;
+    right: -5vw;
+  }
+  .hero-incident {
+    top: 78%;
+    right: 17%;
+    width: 285px;
+  }
+  .hero-commit {
+    top: 17%;
+    width: 215px;
+    right: 12%;
+  }
+  .hero-bottom {
+    margin-top: 50px;
+  }
+  .problem-pieces {
+    gap: 20px;
+  }
+  .problem-piece {
+    padding: 18px 15px;
+  }
+  .piece-label {
+    font-size: 7px;
+  }
+  .problem-piece strong {
+    font-size: 13px;
+  }
+  .problem-piece > .mono {
+    font-size: 7px;
+  }
+  .system-section {
+    padding-top: 110px;
+  }
+  .journey-focus {
+    grid-template-columns: 64px 1.7fr 1fr;
+    gap: 22px;
+  }
+  .journey-readout {
+    padding-left: 25px;
+  }
+  .journey-readout strong {
+    font-size: 12px;
+  }
+  .runtime-metrics .health-metric strong {
+    font-size: 18px;
+  }
+}
+@media (max-width: 1023px) {
+  /* The brand keeps the left track and the pill and toggle share the right: at
+     this width the pill is short enough that centring it in the viewport would
+     strand the toggle on its own. */
+  .site-nav {
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+  }
+  .menu-toggle {
+    display: inline-flex;
+  }
+  .hero {
+    min-height: 810px;
+    padding-top: 145px;
+  }
+  .hero-title {
+    font-size: 11.1vw;
+  }
+  .hero-signal {
+    width: 62vw;
+    height: 62vw;
+    top: 145px;
+    right: -8vw;
+  }
+  .hero-incident {
+    top: 77%;
+    right: 20%;
+    width: 248px;
+  }
+  .hero-commit {
+    width: 210px;
+    top: 13%;
+    right: 16%;
+  }
+  .hero-description {
+    max-width: 365px;
+  }
+  .hero-description p {
+    font-size: 15px;
+  }
+  .hero-actions {
+    gap: 20px;
+  }
+  .hero-actions .button {
+    font-size: 11px;
+    gap: 14px;
+  }
+  .hero-actions .button-text {
+    gap: 8px;
+  }
+  .coordinate-b {
+    display: none;
+  }
+  .problem {
+    padding-top: 100px;
+  }
+  .problem-intro {
+    gap: 7%;
+  }
+  .problem-phrases {
+    gap: 13px;
+  }
+  .problem-pieces {
+    grid-template-columns: 1fr 1fr;
+    gap: 23px;
+  }
+  .problem-piece {
+    padding: 25px;
+  }
+  .piece-label {
+    font-size: 9px;
+    margin-bottom: 23px;
+  }
+  .problem-piece strong {
+    font-size: 17px;
+  }
+  .problem-piece > .mono {
+    font-size: 9px;
+  }
+  .pieces-line,
+  .piece-port {
+    display: none;
+  }
+  .system-section {
+    min-height: auto;
+    padding-block: 95px;
+  }
+  .system-header .section-title {
+    font-size: 6.5vw;
+  }
+  .system-node {
+    font-size: 8px;
+  }
+  .system-footer p {
+    max-width: 290px;
+    line-height: 1.6;
+  }
+  .heading-mark {
+    transform: scale(2);
+  }
+  .runtime-controls .demo-label {
+    display: none;
+  }
+  .runtime-metrics {
+    gap: 16px;
+    padding: 30px 24px;
+  }
+  .runtime-metrics .health-metric strong {
+    font-size: 15px;
+    gap: 7px;
+    min-height: 40px;
+  }
+  .health-metric svg {
+    width: 22px;
+  }
+  .runtime-service-bar {
+    padding-inline: 22px;
+  }
+  .log-row {
+    grid-template-columns: 105px 42px 1fr 65px;
+    font-size: 8px;
+    gap: 9px;
+  }
+  .log-row > span:last-child {
+    display: none;
+  }
+  .observer-insight {
+    right: -1%;
+    bottom: 0;
+    width: 220px;
+    padding: 20px;
+  }
+  .observer-input {
+    padding: 12px;
+    font-size: 10px;
+    gap: 8px;
+  }
+  .observer-core {
+    width: 130px;
+    height: 130px;
+  }
+  .footer-top nav {
+    gap: 20px 30px;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --gutter: 22px;
+    --section-space: 86px;
+  }
+  html {
+    scroll-padding-top: 90px;
+  }
+  .site-nav {
+    top: 15px;
+    left: 18px;
+    right: 18px;
+    min-height: 51px;
+    gap: 10px;
+  }
+  .site-nav .brand {
+    height: 46px;
+    padding-inline: 13px;
+    gap: 8px;
+  }
+  .site-nav .brand > span:last-child {
+    font-size: 16px;
+  }
+  .site-nav .brand .brand-mark {
+    width: 26px;
+    flex-basis: 26px;
+    transform: scale(0.85);
+    transform-origin: left center;
+  }
+  .nav-pill {
+    height: 46px;
+  }
+  .menu-toggle {
+    width: 29px;
+  }
+  .section-title {
+    font-size: clamp(42px, 9.7vw, 74px);
+    line-height: 1.015;
+    letter-spacing: -0.059em;
+  }
+  .section-copy {
+    font-size: 15px;
+    margin-top: 23px;
+  }
+  .hero {
+    min-height: auto;
+    display: flex;
+    flex-direction: column;
+    padding-top: 110px;
+    padding-bottom: 0;
+  }
+  .hero-eyebrow {
+    order: 0;
+    font-size: 7px;
+    letter-spacing: 0.06em;
+    margin-bottom: 27px;
+    gap: 7px;
+  }
+  .hero-title {
+    order: 1;
+    font-size: 14.85vw;
+    letter-spacing: -0.072em;
+    line-height: 0.94;
+    font-weight: 590;
+  }
+  .hero-last-line {
+    font-size: 12.55vw;
+    margin-top: 4px;
+  }
+  .hero-bottom {
+    order: 2;
+    margin-top: 28px;
+  }
+  .hero-description {
+    max-width: 470px;
+  }
+  .hero-description p {
+    font-size: 13px;
+    line-height: 1.7;
+    max-width: 340px;
+  }
+  .hero-actions {
+    gap: 22px;
+    margin-top: 22px;
+  }
+  .hero-actions .button {
+    font-size: 11px;
+    min-height: 47px;
+    padding: 14px 15px;
+    gap: 18px;
+  }
+  .hero-actions .button-text {
+    padding-inline: 0;
+    gap: 8px;
+  }
+  .hero-signal {
+    order: 3;
+    position: relative;
+    top: auto;
+    right: auto;
+    width: calc(100% + 44px);
+    height: 370px;
+    margin-inline: -22px;
+    margin-top: -10px;
+  }
+  .lens-art {
+    width: 430px;
+    height: 430px;
+    left: 50%;
+    top: -12px;
+    transform: translateX(-50%);
+  }
+  .lens-orbit-label {
+    display: none;
+  }
+  .hero-incident {
+    width: 257px;
+    top: 236px;
+    right: 30px;
+    transform: rotate(-4deg);
+    padding: 13px 16px 0;
+  }
+  .hero-incident-body {
+    margin-top: 12px;
+  }
+  .hero-incident-body strong {
+    font-size: 10px;
+  }
+  .hero-incident-body .mono {
+    font-size: 6px;
+  }
+  .incident-card-top .mono {
+    font-size: 6.5px;
+  }
+  .incident-number {
+    font-size: 29px;
+  }
+  .incident-sparkline {
+    height: 27px;
+    margin-top: 5px;
+  }
+  .hero-commit {
+    display: none;
+  }
+  .coordinate-a {
+    top: 43%;
+    left: 5%;
+    font-size: 7px;
+  }
+  .runtime-ribbon {
+    min-height: 48px;
+  }
+  .ribbon-label {
+    padding-inline: 18px;
+    font-size: 7px;
+    gap: 8px;
+  }
+  .ribbon-label svg {
+    width: 14px;
+  }
+  .ribbon-demo {
+    display: none;
+  }
+  .runtime-event {
+    font-size: 7px;
+    padding-inline: 18px;
+  }
+  .problem {
+    padding-top: 92px;
+  }
+  .problem-intro {
+    grid-template-columns: 1fr;
+    gap: 41px;
+  }
+  .statement {
+    font-size: 10.8vw;
+  }
+  .problem-phrases {
+    gap: 13px;
+    padding-left: 30px;
+    border-left: 1px solid var(--line);
+  }
+  .problem-phrases span {
+    font-size: 19px;
+  }
+  .problem-pieces {
+    margin-top: 56px;
+    gap: 15px;
+  }
+  .problem-piece {
+    padding: 16px 13px;
+    border-radius: 7px;
+  }
+  .piece-label {
+    font-size: 6px;
+    gap: 7px;
+    margin-bottom: 22px;
+  }
+  .piece-label svg {
+    width: 15px;
+  }
+  .problem-piece strong {
+    font-size: 12px;
+    line-height: 1.45;
+    min-height: 34px;
+  }
+  .problem-piece > .mono {
+    font-size: 6px;
+    letter-spacing: -0.06em;
+  }
+  .problem-outro {
+    text-align: left;
+    margin-top: 58px;
+    font-size: 8.8vw;
+  }
+  .system-section {
+    padding-block: 78px;
+  }
+  .system-header .section-title {
+    font-size: 9.1vw;
+  }
+  .system-header .eyebrow {
+    font-size: 7px;
+    margin-bottom: 20px;
+  }
+  .heading-mark {
+    display: none;
+  }
+  .system-map {
+    margin-top: 37px;
+  }
+  .system-wiring {
+    display: none;
+  }
+  .system-nodes {
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: none;
+    gap: 10px;
+  }
+  .system-nodes li {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .system-nodes li:last-child {
+    grid-column: 1 / -1;
+  }
+  .system-node {
+    flex-direction: row;
+    gap: 10px;
+    font-size: 9px;
+    background: #e9dbbb;
+    border: 1px solid #253b58;
+    border-radius: 7px;
+    padding: 11px;
+  }
+  .node-icon {
+    width: 25px;
+    height: 25px;
+    border: 0;
+    background: none;
+    border-radius: 0;
+  }
+  .node-icon svg {
+    width: 18px;
+  }
+  .system-node.is-active {
+    border-color: var(--accent);
+  }
+  .system-node.is-active .node-icon {
+    background: none;
+  }
+  .system-nodes li:last-child .system-node {
+    justify-content: center;
+  }
+  .journey-focus {
+    grid-template-columns: 37px 1fr;
+    gap: 17px;
+    margin-top: 30px;
+    padding-top: 25px;
+    min-height: 222px;
+    align-items: start;
+  }
+  .journey-index {
+    font-size: 22px;
+    line-height: 1.5;
+  }
+  .journey-index span {
+    display: block;
+    font-size: 8px;
+  }
+  .journey-main h3 {
+    font-size: 26px;
+    gap: 15px;
+    margin-bottom: 12px;
+  }
+  .journey-main p {
+    font-size: 12px;
+    min-height: 70px;
+  }
+  .journey-readout {
+    border-left: 0;
+    padding-left: 0;
+    grid-column: 2;
+    gap: 8px;
+  }
+  .journey-readout > span:first-child {
+    display: none;
+  }
+  .journey-readout strong {
+    color: #1f150c;
+    font-size: 11px;
+  }
+  .journey-readout .owner {
+    font-size: 7px;
+  }
+  .system-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .system-footer p {
+    font-size: 10px;
+    max-width: 100%;
+  }
+  .runtime-section {
+    padding-bottom: 80px;
+  }
+  .runtime-panel {
+    margin-top: 38px;
+    border-radius: 9px;
+  }
+  .product-toolbar {
+    padding: 12px 14px;
+    min-height: 52px;
+  }
+  .product-breadcrumb {
+    gap: 10px;
+    font-size: 10px;
+  }
+  .product-breadcrumb .brand-mark {
+    width: 16px;
+    flex-basis: 16px;
+    transform: scale(0.53);
+  }
+  .environment-select select {
+    font-size: 7px;
+    padding: 6px 21px 6px 7px;
+  }
+  .runtime-service-bar {
+    padding: 13px 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .service-tabs {
+    gap: 0;
+    width: 100%;
+  }
+  .service-tabs button {
+    font-size: 9px;
+    padding: 7px 11px;
+    flex: 1;
+    white-space: nowrap;
+  }
+  .runtime-state {
+    font-size: 7px;
+    margin-left: 8px;
+  }
+  .runtime-metrics {
+    grid-template-columns: 1fr 1fr;
+    gap: 26px 18px;
+    padding: 26px 19px 20px;
+  }
+  .runtime-metrics .mono {
+    font-size: 7px;
+  }
+  .runtime-metrics strong {
+    font-size: 33px;
+  }
+  .runtime-metrics strong small {
+    font-size: 13px;
+  }
+  .runtime-metrics > div > span:last-child {
+    font-size: 8px;
+  }
+  .runtime-metrics .health-metric strong {
+    font-size: 18px;
+    gap: 7px;
+  }
+  .runtime-chart-header {
+    padding: 10px 18px 12px;
+  }
+  .runtime-chart-header .mono {
+    font-size: 6px;
+  }
+  .playback-controls > span {
+    margin-left: 5px;
+  }
+  .playback-controls .icon-button {
+    width: 22px;
+  }
+  .telemetry-chart {
+    padding-inline: 19px;
+    height: 164px;
+  }
+  .chart-compact {
+    padding-inline: 0;
+    height: 135px;
+  }
+  .telemetry-chart svg text {
+    font-size: 17px;
+  }
+  .runtime-logs {
+    margin: 16px 18px 0;
+    padding-top: 15px;
+  }
+  .log-header {
+    font-size: 6px;
+    margin-bottom: 8px;
+  }
+  .log-lines {
+    height: 100px;
+  }
+  .log-row {
+    grid-template-columns: 42px 1fr 35px;
+    font-size: 7px;
+    gap: 6px;
+    line-height: 25px;
+  }
+  .log-row time {
+    display: none;
+  }
+  .log-row b {
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+  .runtime-incident-banner {
+    padding: 19px 17px;
+    gap: 12px;
+    min-height: 77px;
+  }
+  .runtime-incident-banner > svg {
+    width: 21px;
+  }
+  .runtime-incident-banner strong {
+    font-size: 10px;
+  }
+  .runtime-incident-banner .mono {
+    font-size: 6px;
+    letter-spacing: 0;
+  }
+  .runtime-incident-banner > a svg {
+    width: 18px;
+  }
+  .observer-section {
+    padding-bottom: 74px;
+  }
+  .observer-heading {
+    text-align: left;
+  }
+  .observer-heading .section-title {
+    font-size: 10.2vw;
+  }
+  .observer-heading p {
+    font-size: 14px;
+    margin-top: 21px;
+  }
+  .observer-stage {
+    height: 570px;
+    margin-top: 5px;
+  }
+  .observer-connections {
+    height: 390px;
+    top: 8px;
+  }
+  .observer-core {
+    top: 35%;
+    width: 100px;
+    height: 100px;
+    gap: 11px;
+  }
+  .observer-core .brand-mark {
+    transform: scale(1.05);
+  }
+  .observer-core .mono {
+    font-size: 6px;
+  }
+  .core-ring {
+    inset: -10px;
+  }
+  .observer-input {
+    left: clamp(14%, var(--x), 83%);
+    top: calc(var(--y) * 0.66 + 2%);
+    font-size: 8px;
+    padding: 9px 10px;
+    gap: 6px;
+    border-radius: 5px;
+  }
+  .observer-input svg {
+    width: 13px;
+    height: 13px;
+  }
+  .observer-input:nth-of-type(6) {
+    left: 17%;
+  }
+  .observer-insight {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    padding: 23px;
+  }
+  .observer-insight > strong {
+    font-size: 20px;
+  }
+  .observer-insight p {
+    font-size: 12px;
+    min-height: auto;
+  }
+  .observer-confidence {
+    margin-top: 20px;
+    padding-top: 15px;
+  }
+  .site-footer {
+    padding-top: 40px;
+  }
+  .footer-top {
+    flex-direction: column;
+    gap: 35px;
+  }
+  .footer-descriptor {
+    font-size: 7px;
+    margin-top: 11px;
+  }
+  .footer-top nav {
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+    gap: 19px;
+  }
+  .footer-top nav a {
+    font-size: 11px;
+  }
+  .footer-bottom {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    margin-top: 52px;
+    gap: 25px 10px;
+    font-size: 8px;
+  }
+  .footer-bottom .mono {
+    grid-column: 1/-1;
+    font-size: 7px;
+  }
+  .dialog-content {
+    padding: 24px;
+  }
+  .dialog-heading h2 {
+    font-size: 22px;
+  }
+}
+
+/* Per-character heading reveal — see SplitHeading.
+   The mask clips the glyph so it rises out of a hard edge; the padding gives
+   descenders room inside the clip, and the matching negative margin keeps the
+   line box from growing to match. */
+.split-line {
+  display: block;
+}
+.split-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+.char-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
+}
+.char {
+  display: inline-block;
+}
+
+/* Trailing cursor — see Cursor.
+   The component is what arms this: it adds `has-cursor` to <html> only once it
+   is actually live for a fine pointer. A coarse pointer, a failed script, or
+   reduced motion all leave the native cursor exactly where it was. */
+.cursor {
+  display: none;
+}
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  html.has-cursor,
+  html.has-cursor * {
+    cursor: none !important;
+  }
+  .cursor {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .cursor.is-active {
+    opacity: 1;
+  }
+  .cursor-dot,
+  .cursor-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    border-radius: 50%;
+    will-change: transform;
+  }
+  .cursor-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+  }
+  .cursor-ring {
+    width: 38px;
+    height: 38px;
+    /* The overlay lives at the body, so this is always the ground's context —
+       which makes the resting ring the ground plane's job, not the panels'.
+       At the old near-ground value it composited to 1.22:1 on this slate, and
+       since the stylesheet hides the native cursor whenever the overlay is
+       live, that left the page with an invisible pointer. */
+    border: 1px solid var(--line-strong);
+    transition: border-color 0.35s ease;
+  }
+  .cursor.is-hovering .cursor-ring {
+    border-color: var(--accent);
+  }
+}
+
+/* Opening sequence — see HeroIntro.
+   Off by default and switched on only for a wide screen with motion allowed, so
+   the narrow-viewport path never pays for it. Everything is CSS, and the wipe
+   ends fully clipped, so the cover clears itself even if the component never
+   hydrates. `pointer-events: none` means it can never block the page. */
+.intro {
+  display: none;
+}
+@keyframes intro-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes intro-draw {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes intro-wipe {
+  0%,
+  58% {
+    clip-path: inset(0 0 0% 0);
+  }
+  100% {
+    clip-path: inset(0 0 100% 0);
+  }
+}
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .intro {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 30px;
+    background: var(--bg);
+    pointer-events: none;
+    animation: intro-wipe 1s cubic-bezier(0.76, 0, 0.24, 1) forwards;
+  }
+  .intro-mark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: intro-fade 0.45s ease 0.08s both;
+  }
+  .intro-word {
+    font-size: 19px;
+    font-weight: 620;
+    letter-spacing: 0.16em;
+  }
+  .intro-rule {
+    width: min(240px, 40vw);
+    height: 1px;
+    overflow: hidden;
+    background: var(--line);
+    animation: intro-fade 0.3s ease 0.12s both;
+  }
+  .intro-rule > i {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    animation: intro-draw 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.18s forwards;
+  }
+  .intro-status {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    color: var(--dim);
+    animation: intro-fade 0.4s ease 0.3s both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .ribbon-track,
+  .observer-flow {
+    animation: none !important;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  /* The motion layer never runs under reduced motion, but force the animated
+     properties back to their resting values anyway so a stray inline style
+     from a refresh can never leave a heading clipped. */
+  [data-wipe] {
+    clip-path: none !important;
+    transform: none !important;
+  }
+  [data-split] .char {
+    transform: none !important;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .dialog::backdrop {
+    background: #5c7285ee;
+    backdrop-filter: none;
+  }
+}
