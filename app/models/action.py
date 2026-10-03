@@ -11,7 +11,7 @@ class Action(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: f"ACT-{uuid.uuid4().hex[:8].upper()}")
     incident_id: Mapped[str] = mapped_column(String(64), ForeignKey("incidents.id"), nullable=False, index=True)
-    type: Mapped[str] = mapped_column(String(64), nullable=False)  # ROLLBACK, RESTART_SERVICE, DISABLE_FEATURE, CHANGE_CONFIGURATION, ESCALATE
+    type: Mapped[str] = mapped_column(String(64), nullable=False)  # must match settings.ALLOWED_OPERATIONAL_ACTIONS
     risk_level: Mapped[str] = mapped_column(String(32), default="MEDIUM", nullable=False)  # LOW, MEDIUM, HIGH
     proposed_by: Mapped[str] = mapped_column(String(128), default="ResponsePlannerAgent", nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)

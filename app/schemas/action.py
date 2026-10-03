@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 class ActionBase(BaseModel):
     incident_id: str = Field(..., description="Target incident ID")
-    type: str = Field(..., description="ROLLBACK, RESTART_SERVICE, DISABLE_FEATURE, CHANGE_CONFIGURATION, ESCALATE")
+    type: str = Field(..., description="Operational action type; must be in settings.ALLOWED_OPERATIONAL_ACTIONS, e.g. rollback_deployment, restart_service, disable_feature_flag")
     risk_level: str = Field(default="MEDIUM", description="LOW, MEDIUM, HIGH")
     proposed_by: str = Field(default="ResponsePlannerAgent", description="Proposer identity")
     reason: str = Field(..., description="Reason for proposing this action")

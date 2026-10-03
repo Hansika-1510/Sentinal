@@ -1,7 +1,11 @@
+import asyncio
 import json
 import math
+import random
 import httpx
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Dict, Any, List, Optional, Type
 from pydantic import BaseModel
 from app.core.config import settings
@@ -313,10 +317,91 @@ class MockLLMProvider(LLMProvider):
 
 
 class OpenRouterLLMProvider(LLMProvider):
+    # Statuses worth retrying: 429 is rate limiting (a retry is the whole fix), the 5xx set
+    # is provider-side flakiness. Everything else is a request bug that retrying would repeat.
+    RETRYABLE_STATUSES = frozenset({429, 500, 502, 503, 504})
+
     def __init__(self, api_key: str, model: str = "anthropic/claude-3.5-sonnet", base_url: str = "https://openrouter.ai/api/v1"):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url
+
+    @staticmethod
+    def _parse_retry_after(value: str) -> Optional[float]:
+        """Parse a Retry-After header into a delay in seconds, or None if unparseable.
+
+        RFC 9110 lets the header be either delta-seconds (`Retry-After: 30`) or an
+        HTTP-date (`Retry-After: Wed, 21 Oct 2015 07:28:00 GMT`). Providers send both.
+        Only the numeric form used to be handled, so a dated header silently fell back
+        to exponential backoff and ignored the delay the provider actually asked for.
+        """
+        value = value.strip()
+        try:
+            return max(0.0, float(value))
+        except ValueError:
+            pass
+        try:
+            when = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        if when is None:
+            return None
+        if when.tzinfo is None:
+            # A naive value is only meaningful as an HTTP-date when it is GMT, which
+            # parsedate_to_datetime already converts; assume UTC rather than local time.
+            when = when.replace(tzinfo=timezone.utc)
+        return max(0.0, (when - datetime.now(timezone.utc)).total_seconds())
+
+    @classmethod
+    def _retry_delay(cls, attempt: int, response: Optional[httpx.Response] = None) -> float:
+        """Exponential backoff with jitter, bounded by config. Honours Retry-After when sent."""
+        if response is not None:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                seconds = cls._parse_retry_after(retry_after)
+                if seconds is not None:
+                    return min(seconds, settings.LLM_RETRY_MAX_DELAY_SECONDS)
+        base = settings.LLM_RETRY_BASE_DELAY_SECONDS * (2 ** attempt)
+        return min(base + random.uniform(0, base / 2), settings.LLM_RETRY_MAX_DELAY_SECONDS)
+
+    async def _post(self, client: httpx.AsyncClient, url: str, payload: dict, headers: dict) -> httpx.Response:
+        """POST with bounded retries on rate limiting, transient 5xx, and timeouts.
+
+        The autonomous pipeline treats an investigation failure as non-fatal, so an
+        unretried 429 surfaces to the operator as an incident with no RCA. Retries are
+        bounded so a bad provider still fails fast rather than hanging the ingest request.
+        """
+        attempts = max(1, settings.LLM_MAX_ATTEMPTS)
+        for attempt in range(attempts):
+            is_last = attempt >= attempts - 1
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+            except httpx.TransportError:
+                # TransportError already covers TimeoutException (it is a subclass), so it
+                # is the only name needed here: connect errors, read timeouts, protocol
+                # errors, and pool exhaustion all arrive through this one base class.
+                if is_last:
+                    raise
+                delay = self._retry_delay(attempt)
+                logger.warning(
+                    f"OpenRouter request failed to connect; retrying in {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{attempts})"
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            if response.status_code in self.RETRYABLE_STATUSES and not is_last:
+                delay = self._retry_delay(attempt, response)
+                logger.warning(
+                    f"OpenRouter returned {response.status_code}; retrying in {delay:.1f}s "
+                    f"(attempt {attempt + 1}/{attempts})"
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            return response
+
+        raise LLMIntegrationException("LLM request failed after exhausting retries")  # pragma: no cover
 
     async def generate_structured(self, prompt: str, schema_class: Type[BaseModel], system_prompt: Optional[str] = None) -> BaseModel:
         schema_json = json.dumps(schema_class.model_json_schema(), indent=2)
@@ -334,16 +419,38 @@ class OpenRouterLLMProvider(LLMProvider):
                 {"role": "system", "content": sys_prompt},
                 {"role": "user", "content": prompt}
             ],
-            "response_format": {"type": "json_object"}
+            "response_format": {"type": "json_object"},
+            "max_tokens": settings.LLM_MAX_TOKENS
         }
 
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
-                response = await client.post(f"{self.base_url}/chat/completions", json=payload, headers=headers)
+                response = await self._post(client, f"{self.base_url}/chat/completions", payload, headers)
                 response.raise_for_status()
                 data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                parsed_json = json.loads(content)
+                # A provider-side error body ({"error": {...}}) or an empty choices array
+                # used to surface as a bare KeyError/TypeError, which reaches the operator
+                # as a generic failure with no hint that the shape was wrong.
+                choices = data.get("choices") if isinstance(data, dict) else None
+                if not choices:
+                    raise LLMIntegrationException(
+                        f"LLM response contained no choices: {json.dumps(data)[:300]}"
+                    )
+                choice = choices[0] or {}
+                content = (choice.get("message") or {}).get("content")
+                if not content:
+                    # Reasoning models return content=None when max_tokens is exhausted by
+                    # the reasoning pass, so name the cause rather than failing on json.loads.
+                    raise LLMIntegrationException(
+                        f"LLM returned no content (finish_reason={choice.get('finish_reason')!r}); "
+                        f"the response was likely truncated by max_tokens={settings.LLM_MAX_TOKENS}"
+                    )
+                try:
+                    parsed_json = json.loads(content)
+                except json.JSONDecodeError as e:
+                    raise LLMIntegrationException(
+                        f"LLM returned unparseable JSON (finish_reason={choice.get('finish_reason')!r}): {e}"
+                    )
                 return schema_class.model_validate(parsed_json)
             except Exception as e:
                 logger.error(f"OpenRouter LLM request failed: {str(e)}", exc_info=True)
@@ -359,13 +466,18 @@ class OpenRouterLLMProvider(LLMProvider):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        payload = {"model": self.model, "messages": messages}
+        payload = {"model": self.model, "messages": messages, "max_tokens": settings.LLM_MAX_TOKENS}
         async with httpx.AsyncClient(timeout=60.0) as client:
             try:
-                response = await client.post(f"{self.base_url}/chat/completions", json=payload, headers=headers)
+                response = await self._post(client, f"{self.base_url}/chat/completions", payload, headers)
                 response.raise_for_status()
                 data = response.json()
-                return data["choices"][0]["message"]["content"]
+                choices = data.get("choices") if isinstance(data, dict) else None
+                if not choices:
+                    raise LLMIntegrationException(
+                        f"LLM response contained no choices: {json.dumps(data)[:300]}"
+                    )
+                return (choices[0].get("message") or {}).get("content")
             except Exception as e:
                 raise LLMIntegrationException(str(e))
 

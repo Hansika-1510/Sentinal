@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
@@ -6,19 +7,34 @@ from app.api.deps import get_db
 from app.models.event import Event
 from app.schemas.event import EventCreate, EventRead, EventIngestResponse
 from app.agents.sentinel import SentinelAgent
+from app.services.autonomous_response_service import run_autonomous_response
 
 router = APIRouter(prefix="/events", tags=["Runtime Events"])
 
 
 @router.post("", response_model=EventIngestResponse, status_code=status.HTTP_200_OK)
-def ingest_event(event_in: EventCreate, db: Session = Depends(get_db)):
+async def ingest_event(event_in: EventCreate, db: Session = Depends(get_db)):
     """
     Ingest a runtime event.
     Automatically normalizes, deduplicates, and evaluates anomaly rules via Sentinel Agent.
-    Creates an incident automatically if configured thresholds are breached.
+    Creates an incident automatically if configured thresholds are breached, and — for
+    HIGH/CRITICAL severities — runs investigation and remediation proposal unattended.
     """
-    sentinel = SentinelAgent(db)
-    return sentinel.process_event(event_in)
+    # Sentinel is synchronous and does real DB work, so it must not run on the event
+    # loop: this route used to be `def` and FastAPI kept it in a threadpool. Awaiting
+    # the thread hop restores that without giving up the async orchestration below.
+    #
+    # This means the request session is touched from more than one thread (get_db runs in
+    # a threadpool, this body on the event loop, Sentinel in a worker). SQLAlchemy warns
+    # that a Session is not thread-safe, but that warning is about *concurrent* use: the
+    # accesses here are strictly sequenced, because `to_thread` returns only after Sentinel
+    # has finished, so no two threads ever hold the session at once. Sequential hand-off
+    # is what any FastAPI app with a sync dependency already does; check_same_thread=False
+    # (app/db/session.py:10) is what lets the SQLite driver accept it too.
+    response = await asyncio.to_thread(SentinelAgent(db).process_event, event_in)
+    if response.incident_created and response.incident_id:
+        await run_autonomous_response(response.incident_id, db)
+    return response
 
 
 @router.get("", response_model=List[EventRead])

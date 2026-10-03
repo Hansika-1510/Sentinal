@@ -12,7 +12,9 @@ if sys.platform == "win32":
         pass
 
 from datetime import datetime, timezone, timedelta
+from sqlalchemy import select
 from app.db.session import SessionLocal, init_db
+from app.models.action import Action
 from app.agents.sentinel import SentinelAgent
 from app.agents.investigator import InvestigatorAgent
 from app.agents.codeguard import CodeGuardAgent
@@ -23,6 +25,7 @@ from app.schemas.action import ActionCreate, ActionApproveRequest, ActionExecute
 from app.schemas.incident import IncidentResolveRequest
 from app.services.deployment_service import DeploymentService
 from app.services.remediation_service import RemediationService
+from app.services.autonomous_response_service import run_autonomous_response
 from app.services.incident_service import IncidentService
 from app.services.postmortem_service import PostmortemService
 from app.services.incident_memory_service import IncidentMemoryService
@@ -109,9 +112,11 @@ async def run_demo():
     assert created_incident_id is not None, "Sentinel failed to capture incident ID!"
 
     print("\n" + "-" * 75)
-    print(f"STAGE 4: INVESTIGATION & EVIDENCE-BACKED RCA (Incident: {created_incident_id})")
+    print(f"STAGE 4: AUTONOMOUS INVESTIGATION & EVIDENCE-BACKED RCA (Incident: {created_incident_id})")
     print("-" * 75)
-    inv_result = await investigator.investigate_incident(created_incident_id)
+    print("Handing off to the autonomous pipeline - no manual /investigate call, no human in the loop.")
+    inv_result = await run_autonomous_response(created_incident_id, db)
+    assert inv_result is not None, "Autonomous pipeline returned no investigation result!"
     rca = inv_result.rca
 
     print(f"Executive Summary: {rca.summary}")
@@ -145,20 +150,19 @@ async def run_demo():
         print(f"Safety Disclaimer:  {fix.disclaimer}")
 
     print("\n" + "-" * 75)
-    print("STAGE 6: RESPONSE PLANNING & SAFETY ENFORCEMENT")
+    print("STAGE 6: AUTONOMOUS RESPONSE PLANNING & SAFETY ENFORCEMENT")
     print("-" * 75)
-    # Propose rollback action
-    action = remediation_service.create_action_proposal(ActionCreate(
-        incident_id=created_incident_id,
-        type="rollback_deployment",
-        risk_level="MEDIUM",
-        proposed_by="ResponsePlannerAgent",
-        reason="Rollback deployment v1.8.3 to v1.8.2 to restore database connection pool capacity.",
-        expected_impact="Estimated impact: Restores connection pool capacity to 50 and eliminates HTTP 500 error spike.",
-        rollback_path="Re-deploy v1.8.3 if rollback fails.",
-        metadata_json={"service": "payment-service", "target_version": "v1.8.2"}
-    ))
-    print(f"Proposed Operational Action: ID={action.id}, Type={action.type}, Risk={action.risk_level}, Status={action.approval_status}")
+    planned_actions = list(db.scalars(
+        select(Action).where(Action.incident_id == created_incident_id).order_by(Action.created_at)
+    ).all())
+    assert planned_actions, "Response Planner auto-proposed no actions!"
+    print(f"Response Planner auto-proposed {len(planned_actions)} action(s) with no human input:")
+    for pa in planned_actions:
+        print(f"  • ID={pa.id}, Type={pa.type}, Risk={pa.risk_level}, Status={pa.approval_status}")
+
+    # Walk the approval path with the MEDIUM-risk rollback.
+    action = next((a for a in planned_actions if a.type == "rollback_deployment"), planned_actions[0])
+    print(f"\nSelected for the approval walkthrough: ID={action.id}, Type={action.type}, Risk={action.risk_level}")
 
     # Safety Test: Attempt execution BEFORE approval (must fail)
     print("\n[SAFETY] Testing Safety Guard: Executing unapproved MEDIUM-risk action...")

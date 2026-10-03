@@ -82,7 +82,7 @@ flowchart TD
 * **Migrations:** Alembic
 * **Caching & Queues:** Redis (with local in-memory fallback)
 * **HTTP Client:** HTTPX
-* **Testing:** Pytest (18/18 Unit, API, Safety, and E2E lifecycle tests)
+* **Testing:** Pytest (70 tests: unit, API, safety, agent smoke, LLM resilience, autonomous pipeline, pre-commit hook, and full E2E lifecycle)
 * **LLM Integrations:** OpenRouter, Ollama, and deterministic Mock LLM Adapter
 * **Containerization:** Docker, Docker Compose
 
@@ -121,7 +121,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run all automated tests (18 tests)
+# Run all automated tests (70 tests)
 python -m pytest -v
 ```
 
@@ -172,6 +172,9 @@ Access:
 Use DevGuard as a pre-commit hook or CLI safety gate:
 
 ```bash
+# Install the git pre-commit hook (recommended -- makes the review automatic)
+python cli/devguard.py install-hook
+
 # Review currently staged git changes
 python cli/devguard.py review-staged
 
@@ -181,6 +184,27 @@ python cli/devguard.py review-staged --diff-file /path/to/patch.diff
 
 * **Exits 0** on `PASS` or `WARN`
 * **Exits 1** on `BLOCK` (preventing git commit)
+
+### Automatic review at commit time
+
+`install-hook` writes `.git/hooks/pre-commit` so **every `git commit` is reviewed
+without anyone remembering to run it**. The hook:
+
+* reviews `git diff --cached` and **aborts the commit** on a `BLOCK` finding;
+* calls the backend if it is up, and otherwise falls back to the offline deterministic
+  rule engine, so a commit is never blocked merely because the server is down;
+* uses the project virtualenv, so it does not depend on the developer's `PATH`;
+* refuses to overwrite (or delete) a `pre-commit` hook it did not install -- pass
+  `--force` to overwrite one;
+* can be removed with `python cli/devguard.py install-hook --uninstall`;
+* is bypassed for a single commit with `git commit --no-verify`.
+
+Point it at a non-default backend with `--backend-url http://127.0.0.1:8123`.
+
+Hooks live in `.git/`, which is not versioned, so each clone installs its own with the
+command above. On top of this local gate, the [Robin](https://github.com/antongulin/robin)
+GitHub Action reviews every pull request and every push to one, so review happens both
+before the commit and again on the PR.
 
 ---
 
@@ -224,5 +248,9 @@ python -m pytest -v
 * `tests/test_unit_rules.py`: Anomaly rules (500 spike, post-deployment, health check, stack trace), severity calculation, allowlist validation.
 * `tests/test_safety_and_rules.py`: Unapproved action block, disallowed action rejection, CodeGuard secret blocking, developer responsibility invariant.
 * `tests/test_codeguard_cli.py`: CLI testing for `devguard review-staged`.
+* `tests/test_agent_smoke.py`: One end-to-end check per agent, so a regression is attributed to the agent that broke.
+* `tests/test_llm_resilience.py`: Retry/backoff policy, `Retry-After` handling (delta-seconds and HTTP-date), and diagnostics for truncated completions.
+* `tests/test_autonomous_pipeline.py`: The unattended detect → investigate → propose chain, its severity gate, idempotency, timeout reset, and failure audit trail.
+* `tests/test_devguard_hook.py`: The pre-commit hook installer — LF shebang, exec bit, and refusal to clobber a developer's own hook.
 * `tests/test_api.py`: Complete endpoint test coverage across all routes.
 * `tests/test_e2e_incident_lifecycle.py`: 16-step closed-loop end-to-end acceptance test.

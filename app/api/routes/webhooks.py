@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, Header, Request, status, HTTPException
 from sqlalchemy.orm import Session
@@ -7,6 +8,7 @@ from app.schemas.deployment import DeploymentCreate
 from app.schemas.event import EventCreate
 from app.services.deployment_service import DeploymentService
 from app.agents.sentinel import SentinelAgent
+from app.services.autonomous_response_service import run_autonomous_response
 from app.core.logging import logger
 
 router = APIRouter(prefix="/webhooks", tags=["Webhooks"])
@@ -59,7 +61,12 @@ def generic_deployment_webhook(dep_in: DeploymentCreate, db: Session = Depends(g
 
 
 @router.post("/runtime-events", status_code=status.HTTP_200_OK)
-def generic_runtime_webhook(event_in: EventCreate, db: Session = Depends(get_db)):
+async def generic_runtime_webhook(event_in: EventCreate, db: Session = Depends(get_db)):
     """Generic webhook endpoint for ingestion from APM/Observability tools."""
-    sentinel = SentinelAgent(db)
-    return sentinel.process_event(event_in)
+    # Same reasoning as events.py: Sentinel is synchronous and does real DB work, so it
+    # must not run on the event loop, which would stall every other in-flight request.
+    # The session crosses threads but never concurrently -- see the note in events.py.
+    response = await asyncio.to_thread(SentinelAgent(db).process_event, event_in)
+    if response.incident_created and response.incident_id:
+        await run_autonomous_response(response.incident_id, db)
+    return response
