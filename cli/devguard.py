@@ -8,7 +8,10 @@ from typing import Optional
 # Allow `python cli/devguard.py` to import the `app` package. When Python runs a
 # script it puts the script's directory on sys.path, not the project root, so the
 # offline-analyzer fallback below raised ModuleNotFoundError without this.
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# realpath (not abspath) so a symlinked entry point still resolves to the real
+# project root, and insert(0) (not append) so our own `app` package wins over any
+# same-named package in site-packages.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
 
@@ -18,7 +21,7 @@ if _PROJECT_ROOT not in sys.path:
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, ValueError):
+    except (AttributeError, ValueError, OSError):
         pass
 
 
