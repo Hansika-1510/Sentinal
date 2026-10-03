@@ -46,6 +46,112 @@ def cli():
     pass
 
 
+#: Written into the generated hook so we can tell our own hook from a developer's.
+HOOK_MARKER = "installed by `devguard install-hook`"
+HOOK_FILENAME = "pre-commit"
+
+#: The pre-commit hook body. POSIX sh because Git for Windows runs hooks through its
+#: bundled bash. LF endings matter: a CRLF shebang makes the hook unrunnable.
+HOOK_SCRIPT = """#!/bin/sh
+# CodeGuard pre-commit hook -- {marker}
+# Blocks the commit on a BLOCK finding; lets WARN/PASS through.
+# Bypass for a single commit with: git commit --no-verify
+# Remove with: python cli/devguard.py install-hook --uninstall
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+cd "$ROOT" || exit 0
+
+# Prefer the project virtualenv so the hook does not depend on the developer's PATH.
+PYTHON="python"
+if [ -x ".venv/Scripts/python.exe" ]; then
+    PYTHON=".venv/Scripts/python.exe"
+elif [ -x ".venv/bin/python" ]; then
+    PYTHON=".venv/bin/python"
+fi
+
+AUTHOR="$(git config user.email 2>/dev/null)"
+[ -n "$AUTHOR" ] || AUTHOR="developer@company.com"
+
+exec "$PYTHON" "cli/devguard.py" review-staged --backend-url "__BACKEND_URL__" --author "$AUTHOR"
+"""
+
+
+def _git_hooks_dir() -> Optional[str]:
+    """Locate the hooks directory, honouring core.hooksPath and linked worktrees."""
+    for args in (
+        ["git", "rev-parse", "--path-format=absolute", "--git-path", "hooks"],
+        ["git", "rev-parse", "--git-path", "hooks"],
+    ):
+        try:
+            res = subprocess.run(args, capture_output=True, text=True, check=True)
+            path = res.stdout.strip()
+            if path:
+                return os.path.abspath(path)
+        except Exception:
+            continue
+    return None
+
+
+def _read_text(path: str) -> str:
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        return f.read()
+
+
+@cli.command("install-hook")
+@click.option("--backend-url", default="http://localhost:8000", help="Backend URL the hook calls for the review")
+@click.option("--force", is_flag=True, help="Overwrite a pre-commit hook that devguard did not install")
+@click.option("--uninstall", is_flag=True, help="Remove the devguard pre-commit hook")
+def install_hook(backend_url: str, force: bool, uninstall: bool):
+    """
+    Install a git pre-commit hook so CodeGuard reviews every commit automatically.
+
+    Without this, `review-staged` only runs when a developer remembers to type it, which
+    makes the review advisory rather than enforced. With it, `git commit` runs the review
+    unconditionally and a BLOCK finding aborts the commit.
+    """
+    hooks_dir = _git_hooks_dir()
+    if not hooks_dir:
+        click.secho("[CodeGuard] Not inside a git repository -- nothing to install.", fg="red", bold=True)
+        sys.exit(1)
+
+    hook_path = os.path.join(hooks_dir, HOOK_FILENAME)
+    installed = os.path.exists(hook_path) and HOOK_MARKER in _read_text(hook_path)
+
+    if uninstall:
+        if not os.path.exists(hook_path):
+            click.secho("[CodeGuard] No pre-commit hook to remove.", fg="yellow")
+            sys.exit(0)
+        if not installed:
+            click.secho(
+                "[CodeGuard] That pre-commit hook was not installed by devguard; refusing to delete it.",
+                fg="red", bold=True,
+            )
+            sys.exit(1)
+        os.remove(hook_path)
+        click.secho(f"[CodeGuard] Removed {hook_path}", fg="green", bold=True)
+        sys.exit(0)
+
+    if os.path.exists(hook_path) and not installed and not force:
+        click.secho(
+            f"[CodeGuard] {hook_path} already exists and was not installed by devguard.",
+            fg="red", bold=True,
+        )
+        click.secho("            Re-run with --force to overwrite it (the existing hook will be lost).", fg="red")
+        sys.exit(1)
+
+    os.makedirs(hooks_dir, exist_ok=True)
+    script = HOOK_SCRIPT.replace("__BACKEND_URL__", backend_url).replace("{marker}", HOOK_MARKER)
+    with open(hook_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write(script)
+    # git silently skips a hook it cannot execute.
+    os.chmod(hook_path, 0o755)
+
+    click.secho(f"[CodeGuard] Installed pre-commit hook at {hook_path}", fg="green", bold=True)
+    click.secho("            Every `git commit` now runs CodeGuard on the staged diff.", fg="green")
+    click.secho("            Bypass once with: git commit --no-verify", fg="yellow")
+    sys.exit(0)
+
+
 def get_staged_diff() -> str:
     """Extracts staged git diff using `git diff --cached`."""
     try:
