@@ -1,6 +1,16 @@
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 
+#: Canonical Fix Advisor safety disclaimer.
+#: The "AI never edits your source code" invariant is enforced by normalising every piece
+#: of guidance against this one string, so it lives here as a constant rather than being
+#: read back out of the Pydantic field definition (which would silently yield
+#: PydanticUndefined if the field were ever redefined without a default).
+FIX_ADVISOR_DISCLAIMER = (
+    "AI Fix Advisor provides developer guidance only. Source code modifications must be "
+    "implemented manually by developers and verified via CodeGuard."
+)
+
 
 class EvidenceItem(BaseModel):
     type: str = Field(..., description="Evidence type: deployment, log, commit, code_review, metric, health_check")
@@ -30,7 +40,7 @@ class FixAdvisorGuidance(BaseModel):
     confidence: str = Field(default="HIGH", description="Confidence level in fix guidance")
     validation_steps: List[str] = Field(default_factory=list, description="Step-by-step developer validation instructions")
     disclaimer: str = Field(
-        default="AI Fix Advisor provides developer guidance only. Source code modifications must be implemented manually by developers and verified via CodeGuard.",
+        default=FIX_ADVISOR_DISCLAIMER,
         description="Safety disclaimer"
     )
 

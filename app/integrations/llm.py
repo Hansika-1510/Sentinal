@@ -344,7 +344,7 @@ class OpenRouterLLMProvider(LLMProvider):
         unretried 429 surfaces to the operator as an incident with no RCA. Retries are
         bounded so a bad provider still fails fast rather than hanging the ingest request.
         """
-        attempts = max(1, settings.LLM_MAX_RETRIES)
+        attempts = max(1, settings.LLM_MAX_ATTEMPTS)
         for attempt in range(attempts):
             is_last = attempt >= attempts - 1
             try:

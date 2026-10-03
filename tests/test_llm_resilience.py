@@ -76,8 +76,8 @@ def test_gives_up_after_the_configured_attempt_budget(monkeypatch, no_sleep):
     with pytest.raises(LLMIntegrationException):
         asyncio.run(_provider().generate_structured("prompt", _Schema))
 
-    assert len(calls) == settings.LLM_MAX_RETRIES
-    assert len(no_sleep) == settings.LLM_MAX_RETRIES - 1
+    assert len(calls) == settings.LLM_MAX_ATTEMPTS
+    assert len(no_sleep) == settings.LLM_MAX_ATTEMPTS - 1
 
 
 def test_honours_retry_after_header(monkeypatch, no_sleep):

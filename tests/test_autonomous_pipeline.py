@@ -12,13 +12,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.agents.fix_advisor import FixAdvisorAgent
+from app.agents.investigator import InvestigatorAgent
 from app.agents.response_planner import ResponsePlannerAgent
 from app.core.config import settings
+from app.models.incident import Incident
 from app.schemas.investigation import (
+    FIX_ADVISOR_DISCLAIMER,
     EvidenceItem,
+    FixAdvisorGuidance,
     Hypothesis,
     RootCauseAnalysis,
 )
+from app.services.autonomous_response_service import run_autonomous_response
 
 
 def _register_deployment(client: TestClient, service: str, version: str, commit: str):
@@ -136,6 +141,45 @@ def test_manual_investigate_after_auto_does_not_duplicate_actions(client: TestCl
 
     after = client.get(f"/api/actions?incident_id={incident_id}").json()
     assert len(after) == len(before), "manual re-investigation must not double-propose"
+
+
+def test_autonomous_run_gives_up_at_the_overall_timeout(client, db_session, monkeypatch):
+    """A slow provider must not hold the ingest request open indefinitely.
+
+    On timeout the incident has to read as awaiting triage, not as in-progress: the
+    Investigator commits INVESTIGATING before it calls the model.
+    """
+    # Build a DETECTED incident without the auto path so we can drive it by hand.
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", False)
+    incident_id = _trigger_critical_incident(client)
+    assert client.get(f"/api/incidents/{incident_id}").json()["status"] == "DETECTED"
+
+    async def slow_investigation(self, iid):
+        self.db.get(Incident, iid).status = "INVESTIGATING"  # mirrors investigator.py:44
+        self.db.commit()
+        await asyncio.sleep(30)
+
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", True)
+    monkeypatch.setattr(settings, "AUTO_RESPONSE_TIMEOUT_SECONDS", 0.05)
+    monkeypatch.setattr(InvestigatorAgent, "investigate_incident", slow_investigation)
+
+    result = asyncio.run(run_autonomous_response(incident_id, db_session))
+
+    assert result is None, "a timed-out run must report failure rather than a partial RCA"
+    detail = client.get(f"/api/incidents/{incident_id}").json()
+    assert detail["status"] == "DETECTED", "a timed-out investigation must not look in progress"
+    assert detail["root_cause"] is None
+    assert client.get(f"/api/actions?incident_id={incident_id}").json() == []
+
+
+def test_disclaimer_constant_is_the_single_source_of_truth():
+    """Guards the fix for the Pydantic-internals lookup Robin flagged.
+
+    The investigator normalises every piece of guidance against this constant, so it must
+    stay identical to the schema default -- otherwise the safety invariant silently drifts.
+    """
+    assert "guidance only" in FIX_ADVISOR_DISCLAIMER.lower()
+    assert FixAdvisorGuidance.model_fields["disclaimer"].default == FIX_ADVISOR_DISCLAIMER
 
 
 def test_auto_investigation_can_be_disabled(client: TestClient, monkeypatch):

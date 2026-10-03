@@ -1,5 +1,10 @@
 from typing import Optional, Dict, Any, List
-from app.schemas.investigation import FixAdvisorGuidance, RootCauseAnalysis, EvidenceItem
+from app.schemas.investigation import (
+    FIX_ADVISOR_DISCLAIMER,
+    FixAdvisorGuidance,
+    RootCauseAnalysis,
+    EvidenceItem,
+)
 from app.integrations.llm import get_llm_provider
 from app.core.logging import logger
 
@@ -43,10 +48,8 @@ class FixAdvisorAgent:
                 schema_class=FixAdvisorGuidance,
                 system_prompt="You are an expert Senior Staff Software Engineer advising a developer on fixing a production defect. Provide clear, precise, and testable code guidance."
             )
-            # Ensure safety disclaimer is present
-            guidance.disclaimer = (
-                "AI Fix Advisor provides developer guidance only. Source code modifications must be implemented manually by developers and verified via CodeGuard."
-            )
+            # Ensure safety disclaimer is present and canonical
+            guidance.disclaimer = FIX_ADVISOR_DISCLAIMER
             return guidance
         except Exception as e:
             logger.warning(f"Fix Advisor structured LLM fallback triggered: {str(e)}")
@@ -65,5 +68,5 @@ class FixAdvisorAgent:
                     "2. Run integration test suite with concurrent connections.",
                     "3. Run 'devguard review-staged' before git commit."
                 ],
-                disclaimer="AI Fix Advisor provides developer guidance only. Source code modifications must be implemented manually by developers and verified via CodeGuard."
+                disclaimer=FIX_ADVISOR_DISCLAIMER
             )

@@ -3,11 +3,11 @@ from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
 from app.models.incident import Incident
 from app.schemas.investigation import (
+    FIX_ADVISOR_DISCLAIMER,
     RootCauseAnalysis,
     InvestigationResult,
     Hypothesis,
-    EvidenceItem,
-    FixAdvisorGuidance
+    EvidenceItem
 )
 from app.services.correlation_service import CorrelationService
 from app.services.blast_radius_service import BlastRadiusService
@@ -118,7 +118,7 @@ class InvestigatorAgent:
         # The "guidance only" safety disclaimer is not model-negotiable: normalise it
         # whatever produced the guidance, so the no-direct-code-modification invariant
         # holds regardless of provider.
-        rca.fix_guidance.disclaimer = FixAdvisorGuidance.model_fields["disclaimer"].default
+        rca.fix_guidance.disclaimer = FIX_ADVISOR_DISCLAIMER
 
         # 5. Persist RCA summary & root cause on Incident model
         incident.summary = rca.summary

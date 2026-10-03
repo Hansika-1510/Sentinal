@@ -7,6 +7,7 @@ investigation, then remediation proposal.
 Execution is deliberately NOT automated. A MEDIUM/HIGH risk action still requires an
 explicit human approval before `execute_action` will run it.
 """
+import asyncio
 from typing import Optional
 
 from sqlalchemy import select
@@ -49,7 +50,8 @@ async def run_autonomous_response(incident_id: str, db: Session) -> Optional[Inv
     caller (including tests) observes the effect immediately on the same session.
 
     Never raises: an LLM or planner failure must not turn a successful event ingest
-    into a 5xx. The incident simply stays DETECTED for a human to investigate manually.
+    into a 5xx. The incident is reset to DETECTED for a human to investigate manually.
+    The whole run is bounded by AUTO_RESPONSE_TIMEOUT_SECONDS.
     """
     try:
         if not settings.AUTO_INVESTIGATE_ON_INCIDENT:
@@ -71,7 +73,10 @@ async def run_autonomous_response(incident_id: str, db: Session) -> Optional[Inv
         if incident.root_cause:
             return None
 
-        result = await InvestigatorAgent(db).investigate_incident(incident_id)
+        result = await asyncio.wait_for(
+            InvestigatorAgent(db).investigate_incident(incident_id),
+            timeout=settings.AUTO_RESPONSE_TIMEOUT_SECONDS,
+        )
 
         if settings.AUTO_PROPOSE_REMEDIATION:
             _propose_remediation_from_rca(db, incident, result.rca)
@@ -82,6 +87,7 @@ async def run_autonomous_response(incident_id: str, db: Session) -> Optional[Inv
         logger.error(
             f"Autonomous response failed for incident {incident_id}: {exc}", exc_info=True
         )
+        _reset_to_detected(db, incident_id)
         _record_failure(db, incident_id, exc)
         return None
 
@@ -138,6 +144,23 @@ def _propose_remediation_from_rca(db: Session, incident: Incident, rca: RootCaus
     logger.info(
         f"Autonomous planner proposed {len(options)} remediation option(s) for incident {incident.id}"
     )
+
+
+def _reset_to_detected(db: Session, incident_id: str) -> None:
+    """Return a failed investigation to a state that reads as 'awaiting triage'.
+
+    The Investigator commits INVESTIGATING before it calls the model (investigator.py:44),
+    so a timeout or provider failure would otherwise strand the incident looking like
+    somebody is still working on it. Best-effort: never raises.
+    """
+    try:
+        incident = db.get(Incident, incident_id)
+        if incident is not None and not incident.root_cause and incident.status == "INVESTIGATING":
+            incident.status = "DETECTED"
+            db.commit()
+            logger.info(f"Incident {incident_id} reset to DETECTED after a failed autonomous run")
+    except Exception as exc:  # noqa: BLE001 - cleanup must not mask the original failure
+        logger.warning(f"Could not reset incident {incident_id} to DETECTED: {exc}")
 
 
 def _record_failure(db: Session, incident_id: str, exc: Exception) -> None:

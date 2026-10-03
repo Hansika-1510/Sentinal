@@ -37,7 +37,8 @@ class Settings(BaseSettings):
     # before it emits any JSON: the RCA schema alone is ~10k characters, and at a 4096 cap
     # the model spent 3712 on reasoning and returned a truncated object.
     LLM_MAX_TOKENS: int = 16000
-    LLM_MAX_RETRIES: int = 4
+    # Total attempts per request, including the first one (not "retries after the first").
+    LLM_MAX_ATTEMPTS: int = 4
     LLM_RETRY_BASE_DELAY_SECONDS: float = 1.0
     LLM_RETRY_MAX_DELAY_SECONDS: float = 20.0
 
@@ -62,6 +63,11 @@ class Settings(BaseSettings):
     # LLM call, so this caps spend. Rows are compared upper-cased.
     AUTO_INVESTIGATE_SEVERITIES: List[str] = ["HIGH", "CRITICAL"]
     AUTO_PROPOSE_REMEDIATION: bool = True
+    # Overall ceiling for one autonomous run, covering every LLM call plus its retry
+    # budget. Individual calls are bounded on their own, but the total can otherwise run
+    # into minutes and hold the ingest request open. On timeout the incident is left
+    # DETECTED for manual triage rather than being silently half-investigated.
+    AUTO_RESPONSE_TIMEOUT_SECONDS: float = 120.0
 
     # Operational Action Execution Allowlist
     ALLOWED_OPERATIONAL_ACTIONS: List[str] = [
