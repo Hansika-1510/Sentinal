@@ -11,7 +11,7 @@ import asyncio
 from typing import Optional
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.agents.investigator import InvestigatorAgent
 from app.agents.response_planner import ResponsePlannerAgent
@@ -57,7 +57,7 @@ async def run_autonomous_response(incident_id: str, db: Session) -> Optional[Inv
         if not settings.AUTO_INVESTIGATE_ON_INCIDENT:
             return None
 
-        incident = db.get(Incident, incident_id)
+        incident = db.get(Incident, incident_id, options=[joinedload(Incident.service)])
         if incident is None:
             return None
 

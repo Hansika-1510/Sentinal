@@ -4,6 +4,8 @@ import math
 import random
 import httpx
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Dict, Any, List, Optional, Type
 from pydantic import BaseModel
 from app.core.config import settings
@@ -325,15 +327,40 @@ class OpenRouterLLMProvider(LLMProvider):
         self.base_url = base_url
 
     @staticmethod
-    def _retry_delay(attempt: int, response: Optional[httpx.Response] = None) -> float:
+    def _parse_retry_after(value: str) -> Optional[float]:
+        """Parse a Retry-After header into a delay in seconds, or None if unparseable.
+
+        RFC 9110 lets the header be either delta-seconds (`Retry-After: 30`) or an
+        HTTP-date (`Retry-After: Wed, 21 Oct 2015 07:28:00 GMT`). Providers send both.
+        Only the numeric form used to be handled, so a dated header silently fell back
+        to exponential backoff and ignored the delay the provider actually asked for.
+        """
+        value = value.strip()
+        try:
+            return max(0.0, float(value))
+        except ValueError:
+            pass
+        try:
+            when = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        if when is None:
+            return None
+        if when.tzinfo is None:
+            # A naive value is only meaningful as an HTTP-date when it is GMT, which
+            # parsedate_to_datetime already converts; assume UTC rather than local time.
+            when = when.replace(tzinfo=timezone.utc)
+        return max(0.0, (when - datetime.now(timezone.utc)).total_seconds())
+
+    @classmethod
+    def _retry_delay(cls, attempt: int, response: Optional[httpx.Response] = None) -> float:
         """Exponential backoff with jitter, bounded by config. Honours Retry-After when sent."""
         if response is not None:
             retry_after = response.headers.get("Retry-After")
             if retry_after:
-                try:
-                    return max(0.0, min(float(retry_after), settings.LLM_RETRY_MAX_DELAY_SECONDS))
-                except ValueError:
-                    pass
+                seconds = cls._parse_retry_after(retry_after)
+                if seconds is not None:
+                    return min(seconds, settings.LLM_RETRY_MAX_DELAY_SECONDS)
         base = settings.LLM_RETRY_BASE_DELAY_SECONDS * (2 ** attempt)
         return min(base + random.uniform(0, base / 2), settings.LLM_RETRY_MAX_DELAY_SECONDS)
 

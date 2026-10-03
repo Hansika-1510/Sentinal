@@ -120,16 +120,16 @@ def install_hook(backend_url: str, force: bool, uninstall: bool):
     if uninstall:
         if not os.path.exists(hook_path):
             click.secho("[CodeGuard] No pre-commit hook to remove.", fg="yellow")
-            sys.exit(0)
+            return
         if not installed:
             click.secho(
                 "[CodeGuard] That pre-commit hook was not installed by devguard; refusing to delete it.",
                 fg="red", bold=True,
             )
-            sys.exit(1)
+            raise SystemExit(1)
         os.remove(hook_path)
         click.secho(f"[CodeGuard] Removed {hook_path}", fg="green", bold=True)
-        sys.exit(0)
+        return
 
     if os.path.exists(hook_path) and not installed and not force:
         click.secho(
@@ -137,7 +137,7 @@ def install_hook(backend_url: str, force: bool, uninstall: bool):
             fg="red", bold=True,
         )
         click.secho("            Re-run with --force to overwrite it (the existing hook will be lost).", fg="red")
-        sys.exit(1)
+        raise SystemExit(1)
 
     os.makedirs(hooks_dir, exist_ok=True)
     script = HOOK_SCRIPT.replace("__BACKEND_URL__", backend_url).replace("{marker}", HOOK_MARKER)
@@ -149,7 +149,6 @@ def install_hook(backend_url: str, force: bool, uninstall: bool):
     click.secho(f"[CodeGuard] Installed pre-commit hook at {hook_path}", fg="green", bold=True)
     click.secho("            Every `git commit` now runs CodeGuard on the staged diff.", fg="green")
     click.secho("            Bypass once with: git commit --no-verify", fg="yellow")
-    sys.exit(0)
 
 
 def get_staged_diff() -> str:

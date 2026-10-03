@@ -5,6 +5,8 @@ means an unretried 429 reaches the operator as an incident with no RCA and no pr
 These tests pin the retry policy that closes that gap.
 """
 import asyncio
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 
 import httpx
 import pytest
@@ -147,6 +149,42 @@ def test_retry_after_is_clamped_to_the_ceiling(monkeypatch):
     delay = OpenRouterLLMProvider._retry_delay(0, _response(429, headers={"Retry-After": "600"}))
 
     assert delay == 20.0
+
+
+def _http_date(seconds_from_now: float) -> str:
+    """An RFC 9110 HTTP-date, the other legal spelling of Retry-After."""
+    return format_datetime(datetime.now(timezone.utc) + timedelta(seconds=seconds_from_now), usegmt=True)
+
+
+def test_honours_a_dated_retry_after_header(monkeypatch):
+    """Providers send Retry-After as an HTTP-date too, and that form must not be ignored.
+
+    It used to raise ValueError inside float() and fall through to our exponential guess,
+    discarding the delay the provider explicitly asked for.
+    """
+    monkeypatch.setattr(settings, "LLM_RETRY_MAX_DELAY_SECONDS", 60.0)
+
+    delay = OpenRouterLLMProvider._retry_delay(0, _response(429, headers={"Retry-After": _http_date(12)}))
+
+    assert 9.0 <= delay <= 12.5, f"expected roughly the 12s the header asked for, got {delay}"
+
+
+def test_a_past_dated_retry_after_means_retry_now(monkeypatch):
+    monkeypatch.setattr(settings, "LLM_RETRY_MAX_DELAY_SECONDS", 60.0)
+
+    delay = OpenRouterLLMProvider._retry_delay(0, _response(429, headers={"Retry-After": _http_date(-30)}))
+
+    assert delay == 0.0
+
+
+def test_an_unparseable_retry_after_falls_back_to_backoff(monkeypatch):
+    """A header we cannot read must not become a zero-delay hammer on the provider."""
+    monkeypatch.setattr(settings, "LLM_RETRY_BASE_DELAY_SECONDS", 1.0)
+    monkeypatch.setattr(settings, "LLM_RETRY_MAX_DELAY_SECONDS", 20.0)
+
+    delay = OpenRouterLLMProvider._retry_delay(0, _response(429, headers={"Retry-After": "soon"}))
+
+    assert 0 < delay <= 1.5, f"expected the jittered backoff band, got {delay}"
 
 
 # ------------------------------------------------------ truncated / empty completions

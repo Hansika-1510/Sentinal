@@ -65,6 +65,7 @@ async def generic_runtime_webhook(event_in: EventCreate, db: Session = Depends(g
     """Generic webhook endpoint for ingestion from APM/Observability tools."""
     # Same reasoning as events.py: Sentinel is synchronous and does real DB work, so it
     # must not run on the event loop, which would stall every other in-flight request.
+    # The session crosses threads but never concurrently -- see the note in events.py.
     response = await asyncio.to_thread(SentinelAgent(db).process_event, event_in)
     if response.incident_created and response.incident_id:
         await run_autonomous_response(response.incident_id, db)

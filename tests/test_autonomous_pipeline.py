@@ -7,6 +7,7 @@ proposals. No test here calls POST /incidents/{id}/investigate.
 Execution is deliberately NOT covered as automatic — human approval still gates it.
 """
 import asyncio
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -192,6 +193,62 @@ def test_auto_investigation_can_be_disabled(client: TestClient, monkeypatch):
     assert detail["root_cause"] is None
     assert detail["status"] == "DETECTED"
     assert client.get(f"/api/actions?incident_id={incident_id}").json() == []
+
+
+def test_autonomous_run_skips_an_incident_that_already_has_a_root_cause(
+    client: TestClient, db_session, monkeypatch
+):
+    """Idempotency on the RCA, not just on the proposals.
+
+    A retry (or a duplicate webhook delivery) must not pay for a second LLM call, nor
+    overwrite a diagnosis somebody may already be acting on.
+    """
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", False)
+    incident_id = _trigger_critical_incident(client)
+
+    incident = db_session.get(Incident, incident_id)
+    incident.root_cause = "already diagnosed by an earlier run"
+    db_session.commit()
+
+    called = []
+
+    async def forbidden(self, iid):
+        called.append(iid)
+        raise AssertionError("the Investigator must not run when a root cause already exists")
+
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", True)
+    monkeypatch.setattr(InvestigatorAgent, "investigate_incident", forbidden)
+
+    assert asyncio.run(run_autonomous_response(incident_id, db_session)) is None
+    assert called == []
+    assert db_session.get(Incident, incident_id).root_cause == "already diagnosed by an earlier run"
+
+
+def test_a_failed_run_leaves_an_audit_row(client: TestClient, db_session, monkeypatch):
+    """A swallowed failure must still be visible to an operator somewhere.
+
+    The orchestrator never raises, so without this audit row a provider outage would
+    leave no trace at all beyond a log line.
+    """
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", False)
+    incident_id = _trigger_critical_incident(client)
+
+    async def boom(self, iid):
+        raise RuntimeError("provider exploded")
+
+    monkeypatch.setattr(settings, "AUTO_INVESTIGATE_ON_INCIDENT", True)
+    monkeypatch.setattr(InvestigatorAgent, "investigate_incident", boom)
+
+    assert asyncio.run(run_autonomous_response(incident_id, db_session)) is None
+
+    rows = [
+        row for row in client.get("/api/audit").json()
+        if row["action"] == "AUTONOMOUS_RESPONSE" and row["result"] == "FAILED"
+    ]
+    assert rows, "a failed autonomous run must leave an audit trail"
+    assert rows[0]["actor"] == "AutonomousPipeline"
+    assert rows[0]["target"] == f"Incident:{incident_id}"
+    assert "provider exploded" in json.dumps(rows[0]["metadata_json"])
 
 
 # ------------------------------------------------------------------- planner contract
