@@ -1,8 +1,25 @@
+import os
 import sys
 import subprocess
 import click
 import httpx
 from typing import Optional
+
+# Allow `python cli/devguard.py` to import the `app` package. When Python runs a
+# script it puts the script's directory on sys.path, not the project root, so the
+# offline-analyzer fallback below raised ModuleNotFoundError without this.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+# Windows consoles frequently default to a legacy code page (e.g. cp1252) which
+# cannot encode the status glyphs printed at the end of a review. Without this the
+# CLI dies with UnicodeEncodeError and exits 1, blocking even a clean commit.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 
 
 @click.group()
