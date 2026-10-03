@@ -1,4 +1,11 @@
+import os
 import pytest
+
+# Tests must run offline, fast and deterministically: force the mock LLM provider
+# regardless of the developer's .env (pydantic-settings gives env vars priority
+# over the .env file). The real provider is exercised by scripts/run_incident_demo.py.
+os.environ["LLM_PROVIDER"] = "mock"
+
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
