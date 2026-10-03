@@ -2,41 +2,33 @@ import os
 import sys
 from pathlib import Path
 from dulwich.repo import Repo
-from dulwich.porcelain import init, add, commit, push, remote_add
-from dulwich.ignore import IgnoreFilterManager
+from dulwich.porcelain import add, commit, push, remote_add, branch_create
+from dulwich.client import get_transport_and_path
 
 
-def init_and_commit_repo(repo_path: str = "."):
-    root = Path(repo_path).resolve()
-    
-    # Check if .git exists or initialize
-    git_dir = root / ".git"
-    if not git_dir.exists():
-        repo = init(str(root))
-        print(f"[*] Initialized new Git repository at {root}")
+def push_to_remote(token: str = None, repo_url: str = "https://github.com/Hansika-1510/ai.git"):
+    root = Path(".").resolve()
+    repo = Repo(str(root))
+
+    # Determine auth URL
+    if token:
+        # Inject token into https URL for basic auth
+        # format: https://<token>@github.com/Hansika-1510/ai.git
+        auth_url = repo_url.replace("https://", f"https://{token}@")
     else:
-        repo = Repo(str(root))
-        print(f"[*] Opened existing Git repository at {root}")
+        auth_url = repo_url
 
-    # Add all files respecting .gitignore
-    print("[*] Staging files for commit...")
-    # Add files
-    add(str(root))
-
-    # Create initial commit
+    print(f"[*] Pushing code to {repo_url} (main branch)...")
     try:
-        commit_id = commit(
-            str(root),
-            message=b"feat: AI Software Incident Response Agent complete backend engine",
-            author=b"AI Assistant <assistant@antigravity.ai>",
-            committer=b"AI Assistant <assistant@antigravity.ai>"
-        )
-        print(f"[+] Created commit: {commit_id.decode() if isinstance(commit_id, bytes) else commit_id}")
+        # Push to remote main branch
+        push(repo, auth_url, refspecs=[b"refs/heads/master:refs/heads/main", b"refs/heads/main:refs/heads/main"])
+        print("[+] Successfully pushed code to GitHub!")
+        return True
     except Exception as e:
-        print(f"[-] Commit notice: {e}")
-
-    return repo
+        print(f"[-] Push error: {e}")
+        return False
 
 
 if __name__ == "__main__":
-    init_and_commit_repo()
+    token = sys.argv[1] if len(sys.argv) > 1 else os.getenv("GITHUB_TOKEN")
+    push_to_remote(token=token)
