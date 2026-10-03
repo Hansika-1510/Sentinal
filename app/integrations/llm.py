@@ -349,7 +349,10 @@ class OpenRouterLLMProvider(LLMProvider):
             is_last = attempt >= attempts - 1
             try:
                 response = await client.post(url, json=payload, headers=headers)
-            except (httpx.TimeoutException, httpx.TransportError):
+            except httpx.TransportError:
+                # TransportError already covers TimeoutException (it is a subclass), so it
+                # is the only name needed here: connect errors, read timeouts, protocol
+                # errors, and pool exhaustion all arrive through this one base class.
                 if is_last:
                     raise
                 delay = self._retry_delay(attempt)

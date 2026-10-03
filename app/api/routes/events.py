@@ -1,3 +1,4 @@
+import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.orm import Session
@@ -19,7 +20,10 @@ async def ingest_event(event_in: EventCreate, db: Session = Depends(get_db)):
     Creates an incident automatically if configured thresholds are breached, and — for
     HIGH/CRITICAL severities — runs investigation and remediation proposal unattended.
     """
-    response = SentinelAgent(db).process_event(event_in)
+    # Sentinel is synchronous and does real DB work, so it must not run on the event
+    # loop: this route used to be `def` and FastAPI kept it in a threadpool. Awaiting
+    # the thread hop restores that without giving up the async orchestration below.
+    response = await asyncio.to_thread(SentinelAgent(db).process_event, event_in)
     if response.incident_created and response.incident_id:
         await run_autonomous_response(response.incident_id, db)
     return response
